@@ -5,7 +5,7 @@
 /* global selectedNetwork */
 /* global isElectrified */
 /* global WALLET_VERSION */
-
+import { _ } from 'underscore'
 import './body.html'
 import './customNode.html'
 import '../../stylesheets/overrides.css'
@@ -13,23 +13,23 @@ import '../../stylesheets/overrides.css'
 BlazeLayout.setRoot('body')
 
 const connectToNode = (endpoint, callback) => {
-  wrapMeteorCall('connectToNode', endpoint, (err, res) => {
+  Meteor.bindEnvironment(wrapMeteorCall('connectToNode', endpoint, (err, res) => {
     if (err) {
       callback(err, null)
     } else {
       callback(null, res)
     }
-  })
+  }))
 }
 
 const checkNetworkHealth = (network, callback) => {
-  wrapMeteorCall('checkNetworkHealth', network, (err, res) => {
+  Meteor.bindEnvironment(wrapMeteorCall('checkNetworkHealth', network, (err, res) => {
     if (err) {
       callback(err, null)
     } else {
       callback(null, res)
     }
-  })
+  }))
 }
 
 // Set session state based on selected network node.
