@@ -28,7 +28,7 @@
     "meteor-node-stubs": "^0.2.11",
     "qrllib": "^1.0.4",
     "run-script-os": "^1.0.3",
-    "snyk": "^1.305.0",
+    "snyk": "^1.465.0",
     "tmp": "0.0.33"
   },
   "private": false,
