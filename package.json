@@ -8,7 +8,7 @@
     "@babel/runtime": "^7.17.8",
     "@grpc/grpc-js": "^1.6.0",
     "@grpc/proto-loader": "^0.6.9",
-    "@ledgerhq/hw-transport-node-hid": "^6.24.1",
+    "@ledgerhq/hw-transport-node-hid": "^6.27.7",
     "@ledgerhq/hw-transport-webusb": "^6.24.1",
     "@theqrl/explorer-helpers": "^2.7.0",
     "@theqrl/hw-app-qrl": "^5.34.0",
