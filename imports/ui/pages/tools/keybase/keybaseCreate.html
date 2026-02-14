@@ -1,12 +1,10 @@
 <template name="appKeybaseCreate">
 
-<div class="small ui modal" id="lowOtsKeyWarning">
-  <div class="header">OTS Keys Running Low!</div>
-  <div class="content">
-    <div class="ui warning icon message">
-      <i class="warning icon"></i>
-      <div class="content">
-        <div class="header">
+<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="lowOtsKeyWarning">
+  <div class="text-lg font-semibold">OTS Keys Running Low!</div>
+  <div class="">
+    <div class="alert alert-warning gap-3"> <div class="">
+        <div class="text-lg font-semibold">
           Warning: Your OTS Keys are running low.
         </div>
         <p>You only have <strong>{{otsKeysRemaining}}</strong> OTS Keys remaining. When you have used all of these, you will no longer be able to send QRL or Tokens from this wallet.</p>
@@ -15,18 +13,16 @@
       </div>
     </div>
   </div>
-  <div class="actions">
-    <div class="ui approve green button red">Okay</div>
+  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
+    <div class="btn btn-error">Okay</div>
   </div>
 </div>
 
-<div class="small ui modal" id="invalidNodeResponse">
-  <div class="header">WARNING - Bad Response</div>
-  <div class="content">
-    <div class="ui warning icon message">
-      <i class="warning icon"></i>
-      <div class="content">
-        <div class="header">
+<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="invalidNodeResponse">
+  <div class="text-lg font-semibold">WARNING - Bad Response</div>
+  <div class="">
+    <div class="alert alert-warning gap-3"> <div class="">
+        <div class="text-lg font-semibold">
           WARNING - The node you've requested this transaction from replied with bad data that doesn't match your intended transaction parameters.
           <br /><br />
           This transaction has been cancelled automatically to protect your funds.
@@ -37,18 +33,16 @@
       </div>
     </div>
   </div>
-  <div class="actions">
-    <div class="ui approve green button red">Okay</div>
+  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
+    <div class="btn btn-error">Okay</div>
   </div>
 </div>
 
-<div class="small ui modal" id="otsKeyReuseDetected">
-  <div class="header">OTS Key Reuse</div>
-  <div class="content">
-    <div class="ui warning icon message">
-      <i class="warning icon"></i>
-      <div class="content">
-        <div class="header">
+<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="otsKeyReuseDetected">
+  <div class="text-lg font-semibold">OTS Key Reuse</div>
+  <div class="">
+    <div class="alert alert-warning gap-3"> <div class="">
+        <div class="text-lg font-semibold">
           You have attempted to create a transaction using an OTS Key Index that has previously been used on the QRL Network.
           <br /><br />
           Please recreate your transaction using a unique OTS Key Index.
@@ -57,18 +51,16 @@
       </div>
     </div>
   </div>
-  <div class="actions">
-    <div class="ui approve green button">Okay</div>
+  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
+    <div class="btn btn-success">Okay</div>
   </div>
 </div>
 
-<div class="small ui modal" id="ledgerOtsKeyReuseDetected">
-  <div class="header">OTS Key Reuse</div>
-  <div class="content">
-    <div class="ui warning icon message">
-      <i class="warning icon"></i>
-      <div class="content">
-        <div class="header">
+<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="ledgerOtsKeyReuseDetected">
+  <div class="text-lg font-semibold">OTS Key Reuse</div>
+  <div class="">
+    <div class="alert alert-warning gap-3"> <div class="">
+        <div class="text-lg font-semibold">
           You have attempted to create a transaction using an OTS Key Index that has previously been used on the QRL Network.
           <br /><br />
           You need to update your Ledgers XMSS Index in Tools -> Set XMSS Index.
@@ -77,73 +69,71 @@
       </div>
     </div>
   </div>
-  <div class="actions">
-    <div class="ui approve green button">Okay</div>
+  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
+    <div class="btn btn-success">Okay</div>
   </div>
 </div>
 
-<h2 class="ui header pageHeader">
-  <i class="icon"><img src="/img/keybase-w.svg"></i>
-  <div class="content">
+<h2 class="text-lg font-semibold pageHeader">
+  <i class=""><img src="/img/keybase-w.svg"></i>
+  <div class="">
     Keybase ID
   </div>
 </h2>
 
-<div class="ui left aligned segment pageSegment" id="messageCreateForm">
+<div class="rounded-xl border border-base-300 bg-base-100 p-4 text-left pageSegment" id="messageCreateForm">
 
-  <form id="generateMessageForm" class="ui form">
+  <form id="generateMessageForm" class="space-y-4">
 
-    <h4 class="ui dividing header">Add or remove Keybase identity</h4>
+    <h4 class="text-lg font-semibold dividing">Add or remove Keybase identity</h4>
 
-    <h4 id="transferFormFromAddress" class="breakable"><a class="ui purple label">From Address</a> {{transferFrom.address}}</h4>
-    <h4 class="breakable"><a class="ui yellow label">Quanta Balance</a> <span class="med">{{transferFrom.balance}}</span></h4>
+    <h4 id="transferFormFromAddress" class="breakable"><a class="badge badge-outline purple">From Address</a> {{transferFrom.address}}</h4>
+    <h4 class="breakable"><a class="badge badge-outline yellow">Quanta Balance</a> <span class="med">{{transferFrom.balance}}</span></h4>
 
-    <h4 class="ui horizontal divider header">
+    <h4 class="text-lg font-semibold divider">
       <img src="/img/keybase-w.svg">
       Keybase ID
     </h4>
 
-      <div class="grouped fields">
+      <div class="grid gap-3 md:grid-cols-3 grouped">
     <label>Keybase action</label>
-    <div class="field">
-      <div class="ui radio checkbox">
+    <div class="space-y-2">
+      <div class="flex items-center gap-2">
         <input type="radio" name="kb_action" id="kb_add" checked>
         <label>Add</label>
       </div>
     </div>
-    <div class="field">
-      <div class="ui radio checkbox">
+    <div class="space-y-2">
+      <div class="flex items-center gap-2">
         <input type="radio" name="kb_action" id="kb_remove">
         <label>Remove</label>
       </div>
     </div>
   </div>
 
-  <div class="field">
+  <div class="space-y-2">
     <label>Keybase Username</label>
     <input type="text" id="kb_username" autocomplete="off">
   </div>
 
-    <div class="field">
+    <div class="space-y-2">
       <label>Keybase Signature hash</label>
       <input type="text" id="message" autocomplete="off">
     </div>
 
-    <div class="field">
+    <div class="space-y-2">
       <label>Keybase ID Creation Fee (In Quanta)</label>
       <input type="text" id="fee" value="0.25" autocomplete="off">
     </div>
 
-    <div class="field">
+    <div class="space-y-2">
       <label>OTS Key Index</label>
       <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" {{ledgerWalletDisabled}}>
     </div>
 
-    <div class="field">
-      <div class="ui warning icon message" style="display: inline-flex;">
-        <i class="warning icon"></i>
-        <div class="content">
-          <div class="header">
+    <div class="space-y-2">
+      <div class="alert alert-warning gap-3" style="display: inline-flex;"> <div class="">
+          <div class="text-lg font-semibold">
             OTS Key Index Warning
           </div>
           {{#if isLedgerWallet}}
@@ -155,17 +145,17 @@
       </div>
     </div>
 
-    <div class="field">
-      <button id="createMessage" class="ui huge primary button red" style="float: left;">Create Keybase Transaction</button>
+    <div class="space-y-2">
+      <button id="createMessage" class="btn btn-lg btn-error" style="float: left;">Create Keybase Transaction</button>
       <br />
     </div>
 
-    <div class="field">
+    <div class="space-y-2">
       <br />
-      <div id="generating" style="display: none;" class="ui icon message">
-        <i class="notched circle loading icon"></i>
-        <div class="content">
-          <div class="header">
+      <div id="generating" style="display: none;" class="alert gap-3">
+        <span class="loading loading-spinner loading-md"></span>
+        <div class="">
+          <div class="text-lg font-semibold">
             Just one moment
           </div>
           <p>Generating your new message transaction...</p>
@@ -176,7 +166,7 @@
   </form>
 </div>
 
-<div id="messageCreationFailed" class="ui red segment pageSegment" style="display: none;">
+<div id="messageCreationFailed" class="rounded-xl border border-base-300 bg-base-100 p-4 pageSegment" style="display: none;">
   <h4>Message Creation Failed</h4>
   <p style="word-wrap: break-word; word-break: break-all;">Error: {{messageCreationError}}</p>
 </div>

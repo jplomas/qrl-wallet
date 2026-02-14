@@ -13,7 +13,6 @@ import aes256 from 'aes256'
 import qrlAddressValdidator from '@theqrl/validate-qrl-address'
 import helpers, { tokens } from '@theqrl/explorer-helpers'
 import BetterStorage from 'meteor-better-storage'
-import 'babel-polyfill'
 import Qrl from '@theqrl/hw-app-qrl'
 import TransportWebUSB from '@ledgerhq/hw-transport-webusb'
 
@@ -135,11 +134,11 @@ getMnemonicOfFirstAddress = (walletObject, passphrase) => {
 
 // Fetchs XMSS details from the global XMSS_OBJECT variable or saved ledger values
 getXMSSDetails = () => {
-  const walletStatus = Session.get('walletStatus')
+  const walletStatus = Session.get('walletStatus') || {}
 
   let xmssDetail
 
-  if (walletStatus.walletType === 'ledger') {
+  if (walletStatus.walletType === 'ledger' && walletStatus.address && walletStatus.pubkey) {
     const thisAddress = walletStatus.address
     const thisPk = walletStatus.pubkey
     const thisAddressB32 = pkRawToB32Address(QRLLIB.hstr2bin(thisPk))
@@ -161,7 +160,7 @@ getXMSSDetails = () => {
       index: walletStatus.xmss_index,
       walletType: 'ledger',
     }
-  } else {
+  } else if (XMSS_OBJECT) {
     const thisAddress = XMSS_OBJECT.getAddress()
     const thisPk = XMSS_OBJECT.getPK()
     const thisPkRaw = XMSS_OBJECT.getPKRaw()
@@ -183,6 +182,20 @@ getXMSSDetails = () => {
       signatureType: thisSignatureType,
       index: 0,
       walletType: 'seed',
+    }
+  } else {
+    const generatedWalletDetails = Session.get('generatedWalletDetails') || {}
+    xmssDetail = {
+      address: generatedWalletDetails.address || '',
+      addressB32: generatedWalletDetails.addressB32 || '',
+      pk: generatedWalletDetails.pk || '',
+      hexseed: generatedWalletDetails.hexseed || '',
+      mnemonic: generatedWalletDetails.mnemonic || '',
+      height: generatedWalletDetails.height || 0,
+      hashFunction: generatedWalletDetails.hashFunction || 0,
+      signatureType: generatedWalletDetails.signatureType || 0,
+      index: Number.isInteger(generatedWalletDetails.index) ? generatedWalletDetails.index : 0,
+      walletType: generatedWalletDetails.walletType || 'seed',
     }
   }
 
@@ -256,6 +269,7 @@ resetWalletStatus = () => {
   Session.set('tokenList', [])
   Session.set('tokensHeld', [])
   Session.set('tokensHeldFiltered', [])
+  Session.set('generatedWalletDetails', null)
 }
 
 passwordPolicyValid = (password) => {
@@ -840,7 +854,7 @@ refreshTransferPage = (callback) => {
       $('#tokenBalancesLoading').hide()
 
       // Render dropdown
-      $('.ui.dropdown').dropdown()
+      window.walletUi.initDropdowns('select')
     })
     // Get address balance
     getBalance(getXMSSDetails().address, function () {
@@ -867,23 +881,20 @@ refreshTransferPage = (callback) => {
 ledgerHasNoTokenSupport = () => {
   // Ledger Nano not supported here.
   if (getXMSSDetails().walletType === 'ledger') {
-    $('#ledgerNotSupported')
-      .modal('transition', 'disable')
-      .modal({
-        onApprove: () => {
-          const reloadPath = FlowRouter.path('/transfer', {})
-          FlowRouter.go(reloadPath)
-        },
-        onHide: () => {
-          const reloadPath = FlowRouter.path('/transfer', {})
-          FlowRouter.go(reloadPath)
-        },
-        onDeny: () => {
-          const reloadPath = FlowRouter.path('/transfer', {})
-          FlowRouter.go(reloadPath)
-        },
-      })
-      .modal('show')
+    window.walletUi.showModal('#ledgerNotSupported', {
+      onApprove: () => {
+        const reloadPath = FlowRouter.path('/transfer', {})
+        FlowRouter.go(reloadPath)
+      },
+      onHide: () => {
+        const reloadPath = FlowRouter.path('/transfer', {})
+        FlowRouter.go(reloadPath)
+      },
+      onDeny: () => {
+        const reloadPath = FlowRouter.path('/transfer', {})
+        FlowRouter.go(reloadPath)
+      },
+    })
   }
 }
 

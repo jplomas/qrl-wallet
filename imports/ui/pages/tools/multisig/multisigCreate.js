@@ -1,3 +1,4 @@
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 /* eslint no-console:0, max-len:0 */
 /* global getXMSSDetails, anyAddressToRawAddress, hexToBytes, SHOR_PER_QUANTA,
 selectedNetwork, wrapMeteorCall, nodeReturnedValidResponse, XMSS_OBJECT, concatenateTypedArrays,
@@ -248,7 +249,7 @@ function generateTransaction() {
   } else {
     $('#checkWeightsModal .message .header').text('There\'s a problem')
     $('#checkWeightsModal p').text('One or more of the signatories is invalid: please check the addresses carefully')
-    $('#checkWeightsModal').modal('show')
+    window.walletUi.showModal('#checkWeightsModal')
     return
   }
 
@@ -257,7 +258,7 @@ function generateTransaction() {
     console.log('Duplicate signatory found')
     $('#checkWeightsModal .message .header').text('There\'s a problem')
     $('#checkWeightsModal p').text('Duplicate signatory found')
-    $('#checkWeightsModal').modal('show')
+    window.walletUi.showModal('#checkWeightsModal')
     return
   }
 
@@ -266,7 +267,7 @@ function generateTransaction() {
     console.log('Insufficient balance in wallet for transaction fee')
     $('#checkWeightsModal .message .header').text('There\'s a problem')
     $('#checkWeightsModal p').text('Insufficient balance in wallet for transaction fee')
-    $('#checkWeightsModal').modal('show')
+    window.walletUi.showModal('#checkWeightsModal')
     return
   }
 
@@ -299,7 +300,7 @@ function generateTransaction() {
     } else {
       $('#checkWeightsModal p').text(cwt.error)
     }
-    $('#checkWeightsModal').modal('show')
+    window.walletUi.showModal('#checkWeightsModal')
     return
   }
 
@@ -365,7 +366,7 @@ function generateTransaction() {
         // Hide generating component
         $('#generating').hide()
         // Show warning modal
-        $('#invalidNodeResponse').modal('show')
+        window.walletUi.showModal('#invalidNodeResponse')
       }
     }
   })
@@ -493,7 +494,7 @@ function confirmTransaction() {
     $('#noRemainingSignatures').hide()
 
     // Show ledger sign modal
-    $('#ledgerConfirmationModal').modal({
+    window.walletUi.showModal('#ledgerConfirmationModal', {
       closable: false,
       onDeny: () => {
         // Clear session state for transaction
@@ -502,7 +503,7 @@ function confirmTransaction() {
       },
       onApprove: () => {
         // Hide modal, and show relaying message
-        $('#ledgerConfirmationModal').modal('hide')
+        window.walletUi.hideModal('#ledgerConfirmationModal')
         $('#relaying').show()
 
         // Relay the transaction
@@ -529,7 +530,7 @@ function confirmTransaction() {
           }
         })
       },
-    }).modal('show')
+    })
 
     // Create a transaction
     const sourceAddr = hexToBytes(QRLLIB.getAddress(getXMSSDetails().pk))
@@ -676,7 +677,7 @@ function initialiseFormValidation() {
   }
 
   // Address Validation
-  $.fn.form.settings.rules.qrlAddressValid = function (value) {
+  window.walletUi.addFormRule('qrlAddressValid', function (value) {
     try {
       const rawAddress = anyAddressToRawAddress(value)
       const thisAddress = helpers.rawAddressToHexAddress(rawAddress)
@@ -685,10 +686,10 @@ function initialiseFormValidation() {
     } catch (e) {
       return false
     }
-  }
+  })
 
   // Initialise the form validation
-  $('.ui.form').form({
+  window.walletUi.bindFormValidation('form', {
     fields: validationRules,
   })
 }
@@ -703,10 +704,10 @@ Template.multisigCreate.events({
       <div>
         <div class="field">
           <label>Additional Signatory</label>
-          <div class="ui action center aligned input"  id="amountFields" style="width: 100%; margin-bottom: 10px;">
+          <div class="grid gap-2 md:grid-cols-10" id="amountFields" style="width: 100%; margin-bottom: 10px;">
             <input type="text" id="to_${nextRecipientId}" name="to[]" placeholder="Address" style="width: 55%;">
             <input type="text" id="amounts_${nextRecipientId}" name="amounts[]" placeholder="Weight" style="width: 30%;">
-            <button class="ui red small button removeTransferRecipient" style="width: 10%"><i class="remove user icon"></i></button>
+            <button class="btn btn-error btn-sm removeTransferRecipient" style="width: 10%"><span aria-hidden="true">−</span></button>
           </div>
         </div>
       </div>
@@ -736,7 +737,7 @@ Template.multisigCreate.events({
   },
   'click #confirmTransaction': () => {
     $('#confirmTransaction').attr('disabled', true)
-    $('#confirmTransaction').html('<div class="ui active inline loader"></div>')
+    $('#confirmTransaction').html('<span class="loading loading-spinner loading-sm"></span>')
     setTimeout(() => { confirmTransaction() }, 200)
   },
   'click #quantaJsonClick': () => {

@@ -1,3 +1,4 @@
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 /* eslint no-console:0 */
 /* global QRLLIB, XMSS_OBJECT, LocalStore, QrlLedger, isElectrified, selectedNetwork,loadAddressTransactions, getTokenBalances, updateBalanceField, refreshTransferPage */
 /* global pkRawToB32Address, hexOrB32, rawToHexOrB32, anyAddressToRawAddress, stringToBytes, binaryToBytes, bytesToString, bytesToHex, hexToBytes, toBigendianUint64BytesUnsigned, numberToString, decimalToBinary */
@@ -7,10 +8,9 @@
 
 import JSONFormatter from 'json-formatter-js'
 import './tx.html'
+import { toggle } from '../../lib/dom'
 
 Template.appVerifyTxid.onRendered(() => {
-  this.$('.value').popup()
-
   Session.set('txhash', {})
   Session.set('qrlValue', {})
   Session.set('status', {})
@@ -48,7 +48,7 @@ Template.appVerifyTxid.onRendered(() => {
     })
   }
   if (thisTxId.length !== 64) {
-    Session.set('txhash', { error: 'Invalif txhash', id: thisTxId })
+    Session.set('txhash', { error: 'Invalid txhash', id: thisTxId })
   }
 })
 
@@ -143,15 +143,15 @@ Template.appVerifyTxid.helpers({
   color() {
     try {
       if (this.tx.transactionType === 'coinbase') {
-        return 'teal'
+        return 'badge-info'
       }
       if (this.tx.transactionType === 'stake') {
-        return 'red'
+        return 'badge-error'
       }
       if (this.tx.transactionType === 'transfer') {
-        return 'yellow'
+        return 'badge-warning'
       }
-      return 'sky'
+      return 'badge-primary'
     } catch (e) {
       return false
     }
@@ -265,15 +265,17 @@ Template.appVerifyTxid.helpers({
 })
 
 Template.appVerifyTxid.events({
-  'click .close': () => {
-    $('.message').hide()
-  },
-  'click .jsonclick': () => {
-    if (!($('.json').html())) {
+  'click .jsonclick': (event, templateInstance) => {
+    event.preventDefault()
+    const jsonElement = templateInstance.find('.json')
+    const jsonBox = templateInstance.find('.jsonbox')
+
+    if (jsonElement && jsonElement.innerHTML === '') {
       const myJSON = Session.get('txhash').transaction
       const formatter = new JSONFormatter(myJSON)
-      $('.json').html(formatter.render())
+      jsonElement.appendChild(formatter.render())
     }
-    $('.jsonbox').toggle()
+
+    toggle(jsonBox)
   },
 })

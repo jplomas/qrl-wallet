@@ -1,4 +1,4 @@
-import { FlowRouter } from 'meteor/kadira:flow-router'
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 
 Template.appMultisigMenu.helpers({
   isActiveTab(p) {
@@ -22,14 +22,13 @@ Template.appMultisigMenu.events({
     if (checkIfCanNavigateAway()) {
       FlowRouter.go('/tools/multisig/create')
     } else {
-      $('#cancelWaitingForTransactionWarning').modal('transition', 'disable')
-        .modal({
-          onApprove: () => {
-            $('#cancelWaitingForTransactionWarning').modal('transition', 'disable').modal('hide')
-            Session.set('txstatus', 'Unknown')
-            FlowRouter.go('/tools/multisig/create')
-          },
-        }).modal('show')
+      window.walletUi.showModal('#cancelWaitingForTransactionWarning', {
+        onApprove: () => {
+          window.walletUi.hideModal('#cancelWaitingForTransactionWarning')
+          Session.set('txstatus', 'Unknown')
+          FlowRouter.go('/tools/multisig/create')
+        },
+      })
     }
   },
   'click #tabBtnSpend': (event) => {
@@ -37,14 +36,13 @@ Template.appMultisigMenu.events({
     if (checkIfCanNavigateAway()) {
       FlowRouter.go('/tools/multisig/spend')
     } else {
-      $('#cancelWaitingForTransactionWarning').modal('transition', 'disable')
-        .modal({
-          onApprove: () => {
-            $('#cancelWaitingForTransactionWarning').modal('transition', 'disable').modal('hide')
-            Session.set('txstatus', 'Unknown')
-            FlowRouter.go('/tools/multisig/spend')
-          },
-        }).modal('show')
+      window.walletUi.showModal('#cancelWaitingForTransactionWarning', {
+        onApprove: () => {
+          window.walletUi.hideModal('#cancelWaitingForTransactionWarning')
+          Session.set('txstatus', 'Unknown')
+          FlowRouter.go('/tools/multisig/spend')
+        },
+      })
     }
   },
   'click #tabBtnVote': (event) => {
@@ -52,14 +50,13 @@ Template.appMultisigMenu.events({
     if (checkIfCanNavigateAway()) {
       FlowRouter.go('/tools/multisig/vote')
     } else {
-      $('#cancelWaitingForTransactionWarning').modal('transition', 'disable')
-        .modal({
-          onApprove: () => {
-            $('#cancelWaitingForTransactionWarning').modal('transition', 'disable').modal('hide')
-            Session.set('txstatus', 'Unknown')
-            FlowRouter.go('/tools/multisig/vote')
-          },
-        }).modal('show')
+      window.walletUi.showModal('#cancelWaitingForTransactionWarning', {
+        onApprove: () => {
+          window.walletUi.hideModal('#cancelWaitingForTransactionWarning')
+          Session.set('txstatus', 'Unknown')
+          FlowRouter.go('/tools/multisig/vote')
+        },
+      })
     }
   },
 })

@@ -5,9 +5,10 @@
 /* global resetWalletStatus, passwordPolicyValid, countDecimals, supportedBrowser, wrapMeteorCall, getBalance, otsIndexUsed, ledgerHasNoTokenSupport, resetLocalStorageState, nodeReturnedValidResponse */
 /* global POLL_TXN_RATE, POLL_MAX_CHECKS, DEFAULT_NETWORKS, findNetworkData, SHOR_PER_QUANTA, WALLET_VERSION, QRLPROTO_SHA256,  */
 
-import './body.html'
-import './customNode.html'
+import { BlazeLayout } from 'meteor/pwix:blaze-layout'
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 import '../../stylesheets/overrides.css'
+import { isChecked, isVisible } from '../../lib/dom'
 import { isElectrified } from '../../../startup/client/functions'
 
 BlazeLayout.setRoot('body')
@@ -39,7 +40,8 @@ const updateNetwork = (selectedNetwork) => {
 
   // If no network is selected, default to mainnet
   if (selectedNetwork === '') {
-    $('#networkDropdown').dropdown('set selected', DEFAULT_NETWORKS[0].id)
+    const networkSelect = document.getElementById('network')
+    if (networkSelect) networkSelect.value = DEFAULT_NETWORKS[0].id
     userNetwork = DEFAULT_NETWORKS[0].id
   }
 
@@ -51,47 +53,9 @@ const updateNetwork = (selectedNetwork) => {
   // Update local node connection details
   switch (userNetwork) {
     case 'add': {
-      $('#addNode').modal({
-        onDeny: () => {
-          Session.set('modalEventTriggered', true)
-          Session.set('cancellingNetwork', true)
-          $('#networkDropdown').dropdown('set selected', 'mainnet')
-        },
-        onApprove: () => {
-          Session.set('nodeId', 'custom')
-          Session.set('nodeName', document.getElementById('customNodeName').value)
-          Session.set('nodeGrpc', document.getElementById('customNodeGrpc').value)
-          Session.set('nodeExplorerUrl', document.getElementById('customNodeExplorer').value)
-
-          LocalStore.set('customNodeName', document.getElementById('customNodeName').value)
-          LocalStore.set('customNodeGrpc', document.getElementById('customNodeGrpc').value)
-          LocalStore.set('customNodeExplorerUrl', document.getElementById('customNodeExplorer').value)
-
-          LocalStore.set('customNodeCreated', true)
-          Session.set('modalEventTriggered', true)
-
-          $('#networkDropdown').dropdown('refresh')
-
-          // Hacky workaround to https://github.com/Semantic-Org/Semantic-UI/issues/2247
-          setTimeout(() => {
-            $('#networkDropdown').dropdown('set selected', 'custom')
-          }, 100)
-        },
-        onHide: () => {
-          // onHide is triggered even after onApprove and onDeny.
-          // In those events, we set a LocalStorage value which we use inside here
-          // so that we only trigger when the modal is hidden without an approval or denial
-          // eg: pressing esc
-
-          // If the modal is hidden without approval, revert to mainnet
-          if (Session.get('modalEventTriggered') === false) {
-            $('#networkDropdown').dropdown('set selected', 'mainnet')
-          }
-
-          // Reset modalEventTriggered
-          Session.set('modalEventTriggered', false)
-        },
-      }).modal('show')
+      // Show DaisyUI modal for adding custom node
+      const modal = document.getElementById('addNodeModal')
+      if (modal) modal.showModal()
       break
     }
     case 'custom': {
@@ -146,84 +110,61 @@ const updateNetwork = (selectedNetwork) => {
 Template.appBody.onRendered(() => {
   Session.set('modalEventTriggered', false)
 
-  $('#networkDropdown').dropdown({ allowReselection: true })
-  $('.small.modal').modal()
+  // Initialize with default network
+  const networkSelect = document.getElementById('network')
+  if (networkSelect) {
+    networkSelect.value = Session.get('nodeId') || DEFAULT_NETWORKS[0].id
+  }
 
   updateNetwork(selectedNetwork())
 
-  // Hide wallet warning on electrified clients
-  if (isElectrified()) {
-    $('#walletWarning').hide()
-  } else {
-    // Show walletWarning at top. This needs to be here twice or it doesn't work onload
-    $('#walletWarning').sticky({ context: '#walletWarning' })
-    $('#walletWarning').sticky({ context: '#walletWarning' })
-  }
-
-  /*
-   * Replace all SVG images with inline SVG
-   */
-  jQuery('img.svg').each(function () {
-    const $img = jQuery(this)
-    const imgID = $img.attr('id')
-    const imgClass = $img.attr('class')
-    const imgURL = $img.attr('src')
-
-    jQuery.get(imgURL, function (data) {
-      // Get the SVG tag, ignore the rest
-      let $svg = jQuery(data).find('svg')
-
-      // Add replaced image's ID to the new SVG
-      if (typeof imgID !== 'undefined') {
-        $svg = $svg.attr('id', imgID)
-      }
-      // Add replaced image's classes to the new SVG
-      if (typeof imgClass !== 'undefined') {
-        $svg = $svg.attr('class', imgClass+' replaced-svg')
-      }
-
-      // Remove any invalid XML tags as per http://validator.w3.org
-      $svg = $svg.removeAttr('xmlns:a')
-
-      // Check if the viewport is set, if the viewport is not set the SVG wont't scale.
-      if (!$svg.attr('viewBox') && $svg.attr('height') && $svg.attr('width')) {
-        $svg.attr('viewBox', '0 0 ' + $svg.attr('height') + ' ' + $svg.attr('width'))
-      }
-
-      // Replace image with new SVG
-      $img.replaceWith($svg)
-    }, 'xml')
-  })
-
   // Debug log for web assembly support
   console.log('Web Assembly Supported: ', supportedBrowser())
-
-  // Show warning if web assembly is not supported.
-  if (!supportedBrowser()) {
-    $('#webassemblyWarning').modal('show')
-  }
 })
 
 Template.appBody.events({
-  'click .main-content-warning .right .item': () => {
-    $('.main-content-wrapper').css('padding-top', '0')
-    $('.main-content-warning').hide('slow')
-  },
-  'click #hamburger': (event) => {
-    event.preventDefault()
-    $('.sidebar').sidebar('show')
-  },
   'change #network': (event) => {
-    console.log(event)
-    updateNetwork(selectedNetwork())
-    if (event.target.value !== 'add' && Session.get('cancellingNetwork') !== true) {
+    const value = event.target.value
+    console.log('Network changed to:', value)
+    updateNetwork(value)
+    if (value !== 'add' && Session.get('cancellingNetwork') !== true) {
       // reload to update balances/Txs if on different network
       window.Reload._reload()
     }
     Session.set('cancellingNetwork', false)
   },
+  'click #saveCustomNode': () => {
+    // Save custom node settings
+    Session.set('nodeId', 'custom')
+    Session.set('nodeName', document.getElementById('customNodeName').value)
+    Session.set('nodeGrpc', document.getElementById('customNodeGrpc').value)
+    Session.set('nodeExplorerUrl', document.getElementById('customNodeExplorer').value)
+
+    LocalStore.set('customNodeName', document.getElementById('customNodeName').value)
+    LocalStore.set('customNodeGrpc', document.getElementById('customNodeGrpc').value)
+    LocalStore.set('customNodeExplorerUrl', document.getElementById('customNodeExplorer').value)
+    LocalStore.set('customNodeCreated', true)
+
+    // Close modal and select custom node
+    const modal = document.getElementById('addNodeModal')
+    if (modal) modal.close()
+    
+    const networkSelect = document.getElementById('network')
+    if (networkSelect) networkSelect.value = 'custom'
+    
+    updateNetwork('custom')
+  },
+  'click #cancelCustomNode': () => {
+    const modal = document.getElementById('addNodeModal')
+    if (modal) modal.close()
+    
+    // Revert to mainnet
+    Session.set('cancellingNetwork', true)
+    const networkSelect = document.getElementById('network')
+    if (networkSelect) networkSelect.value = 'mainnet'
+  },
   'change #addressFormatCheckbox': () => {
-    const checked = $('#addressFormatCheckbox').prop('checked')
+    const checked = isChecked('addressFormatCheckbox')
     if (checked) {
       LocalStore.set('addressFormat', 'bech32')
     } else {
@@ -232,13 +173,13 @@ Template.appBody.events({
   },
   'click #sendAndReceiveButton': () => {
     // Three primary sections
-    const transactionGenerateFieldVisible = $('#generateTransactionArea').is(':visible')
-    const tokenBalancesTabVisible = $('#tokenBalancesTab').is(':visible')
-    const receiveTabVisible = $('#receiveTab').is(':visible')
+    const transactionGenerateFieldVisible = isVisible('generateTransactionArea')
+    const tokenBalancesTabVisible = isVisible('tokenBalancesTab')
+    const receiveTabVisible = isVisible('receiveTab')
 
     // Completed transaction sections
-    const tokenTransactionResultAreaVisible = $('#tokenTransactionResultArea').is(':visible')
-    const transactionResultAreaVisible = $('#transactionResultArea').is(':visible')
+    const tokenTransactionResultAreaVisible = isVisible('tokenTransactionResultArea')
+    const transactionResultAreaVisible = isVisible('transactionResultArea')
 
     if (FlowRouter.getRouteName() === 'App.transfer') {
       if (
@@ -255,25 +196,23 @@ Template.appBody.events({
             const reloadPath = FlowRouter.path('/reloadTransfer', {})
             FlowRouter.go(reloadPath)
           } else {
-            $('#cancelWaitingForTransactionWarning').modal('transition', 'disable')
-              .modal({
-                onApprove: () => {
-                  $('#cancelWaitingForTransactionWarning').modal('transition', 'disable').modal('hide')
-                  const reloadPath = FlowRouter.path('/reloadTransfer', {})
-                  FlowRouter.go(reloadPath)
-                },
-              }).modal('show')
-          }
-        } else {
-          // Confirm with user they will lose progress of this transaction if they proceeed.
-          $('#cancelTransactionGenerationWarning').modal('transition', 'disable')
-            .modal({
+            window.walletUi.showModal('#cancelWaitingForTransactionWarning', {
               onApprove: () => {
-                $('#cancelTransactionGenerationWarning').modal('transition', 'disable').modal('hide')
+                window.walletUi.hideModal('#cancelWaitingForTransactionWarning')
                 const reloadPath = FlowRouter.path('/reloadTransfer', {})
                 FlowRouter.go(reloadPath)
               },
-            }).modal('show')
+            })
+          }
+        } else {
+          // Confirm with user they will lose progress of this transaction if they proceeed.
+          window.walletUi.showModal('#cancelTransactionGenerationWarning', {
+            onApprove: () => {
+              window.walletUi.hideModal('#cancelTransactionGenerationWarning')
+              const reloadPath = FlowRouter.path('/reloadTransfer', {})
+              FlowRouter.go(reloadPath)
+            },
+          })
         }
       }
     }
@@ -361,12 +300,15 @@ Template.appBody.helpers({
     if (Session.get('nodeStatus') === 'connecting') {
       status.string = 'Connecting to'
       status.colour = 'yellow'
+      status.connected = false
     } else if (Session.get('nodeStatus') === 'ok') {
       status.string = 'Connected to'
       status.colour = 'green'
+      status.connected = true
     } else {
       status.string = 'Failed to connect to'
       status.colour = 'red'
+      status.connected = false
     }
     return status
   },
@@ -402,6 +344,14 @@ Template.appBody.helpers({
     }
     return ''
   },
+  menuToolsActive() {
+    if (FlowRouter.getRouteName()?.startsWith('App.tools') || 
+        FlowRouter.getRouteName()?.startsWith('App.message') ||
+        FlowRouter.getRouteName()?.startsWith('App.multisig')) {
+      return 'active'
+    }
+    return ''
+  },
   menuTokensActive() {
     if (
       (FlowRouter.getRouteName() === 'App.tokens')
@@ -427,6 +377,9 @@ Template.appBody.helpers({
   },
   qrlWalletVersion() {
     return WALLET_VERSION
+  },
+  currentYear() {
+    return new Date().getFullYear()
   },
 })
 

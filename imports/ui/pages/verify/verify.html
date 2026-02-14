@@ -1,25 +1,30 @@
 <template name="appVerify">
 
-<h4 class="ui header pageHeader">
-  <i class="icon"><img height="32px" src="/img/icons/verify.svg" style="margin-top: -5px;"></i>
-  <div class="content">
-    Verify Transaction
+<!-- Page Header -->
+<div class="flex items-center gap-3 mb-6">
+  <div class="bg-info/20 p-3 rounded-lg">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
   </div>
-</h4>
-  
-<div class="ui segment pageSegment">
+  <h1 class="text-2xl font-bold text-base-content">Verify Transaction</h1>
+</div>
 
-  <!-- View Transaction -->
-  <div class="ui center aligned grid stackable">
-    <div class="row">
-      <div class="sixteen wide column">
-        <div class="ui input" style="width: 80%">
-          <input id="transactionId" type="text" placeholder="Transaction Id" autocomplete="off">
-          <div type="submit" class="ui button red">Verify Transaction</div>
-        </div>
-      </div>
+<!-- Main Card -->
+<div class="card-gradient">
+  <div class="card-body">
+    <p class="text-base-content/70 mb-4">Enter a transaction ID to verify its details on the QRL network.</p>
+    
+    <div class="join w-full max-w-2xl mx-auto">
+      <input id="transactionId" type="text" placeholder="Enter Transaction ID" autocomplete="off" class="input input-bordered join-item flex-1 bg-base-100" />
+      <button class="btn btn-primary join-item gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        Verify
+      </button>
     </div>
   </div>
-
 </div>
+
 </template>

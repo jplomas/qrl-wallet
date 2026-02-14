@@ -3,7 +3,8 @@
 
 import { Meteor } from 'meteor/meteor'
 import { check } from 'meteor/check'
-import { BrowserPolicy } from 'meteor/browser-policy-common'
+import { WebApp } from 'meteor/webapp'
+import crypto from 'crypto'
 import helpers from '@theqrl/explorer-helpers'
 import grpc from '@grpc/grpc-js'
 import protoloader from '@grpc/proto-loader'
@@ -16,20 +17,82 @@ import TransportNodeHid from '@ledgerhq/hw-transport-node-hid'
 import Qrl from '@theqrl/hw-app-qrl/lib/Qrl'
 import { QRLPROTO_SHA256 } from '@theqrl/qrl-proto-sha256'
 
+// Local compatibility additions for node versions newer than the published
+// qrl-proto-sha256 package.
+const QRLPROTO_SHA256_OVERRIDES = [
+  {
+    version: '4.0.0 python',
+    protoSha256: '0d70a3372c4668a1bf4fd42983ae01f2e0fb54b4030b808bbea78e5adadb23f0',
+    objectSha256: 'b1de7b4968bb3605a00670d9c946b993017c17d5cd12d8fedb1ac5c47ea2ef76',
+    walletProto: 'b1de7b4968bb3605a00670d9c946b993017c17d5cd12d8fedb1ac5c47ea2ef76',
+  },
+]
+const TRUSTED_QRLPROTO_SHA256 = [...QRLPROTO_SHA256, ...QRLPROTO_SHA256_OVERRIDES]
+
 const PROTO_PATH = Assets.absoluteFilePath('qrlbase.proto').split(
   'qrlbase.proto'
 )[0]
 
-// Apply BrowserPolicy
-BrowserPolicy.content.disallowInlineScripts()
-BrowserPolicy.content.allowStyleOrigin('fonts.googleapis.com')
-BrowserPolicy.content.allowFontOrigin('cdn.jsdelivr.net')
-BrowserPolicy.content.allowStyleOrigin('cdn.jsdelivr.net')
-BrowserPolicy.content.allowFontOrigin('fonts.gstatic.com')
-BrowserPolicy.content.allowFontOrigin('fonts.cdnfonts.com')
-BrowserPolicy.content.allowStyleOrigin('fonts.cdnfonts.com')
-BrowserPolicy.content.allowFontDataUrl()
-BrowserPolicy.content.allowDataUrlForAll()
+// CSP nonce generation middleware
+WebApp.connectHandlers.use((req, res, next) => {
+  const nonce = crypto.randomBytes(16).toString('base64')
+  res.locals = res.locals || {}
+  res.locals.cspNonce = nonce
+
+  const cspHeader = [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-eval' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline' fonts.googleapis.com cdn.jsdelivr.net fonts.cdnfonts.com",
+    "font-src 'self' data: cdn.jsdelivr.net fonts.gstatic.com fonts.cdnfonts.com",
+    "img-src 'self' data:",
+    "connect-src 'self' data: https: wss: ws:",
+  ].join('; ')
+
+  res.setHeader('Content-Security-Policy', cspHeader)
+  next()
+})
+
+// HTML modification middleware to inject nonce into script tags
+WebApp.connectHandlers.use((req, res, next) => {
+  if (!res.locals || !res.locals.cspNonce) {
+    return next()
+  }
+
+  const originalWrite = res.write
+  const originalEnd = res.end
+  const chunks = []
+
+  res.write = function (chunk) {
+    chunks.push(Buffer.from(chunk))
+  }
+
+  res.end = function (chunk) {
+    if (chunk) {
+      chunks.push(Buffer.from(chunk))
+    }
+
+    if (chunks.length === 0) {
+      res.write = originalWrite
+      res.end = originalEnd
+      return originalEnd.call(res)
+    }
+
+    const body = Buffer.concat(chunks).toString('utf8')
+    const nonce = res.locals.cspNonce
+
+    // Add nonce to all script tags that don't already have one
+    const modifiedBody = body.replace(
+      /<script(?![^>]*nonce=)/g,
+      `<script nonce="${nonce}"`
+    )
+
+    res.write = originalWrite
+    res.end = originalEnd
+    res.end(modifiedBody)
+  }
+
+  next()
+})
 
 // An array of grpc connections and associated proto file paths
 const qrlClient = []
@@ -113,7 +176,7 @@ const loadGrpcClient = (endpoint, callback) => {
                     + ' is valid'
                 )
                 let verified = false
-                QRLPROTO_SHA256.forEach((value) => {
+                TRUSTED_QRLPROTO_SHA256.forEach((value) => {
                   if (value.protoSha256) {
                     if (value.protoSha256 === calculatedProtoHash) {
                       verified = true
@@ -159,7 +222,7 @@ const loadGrpcClient = (endpoint, callback) => {
                           + ' is valid'
                       )
                       let verifiedObject = false
-                      QRLPROTO_SHA256.forEach((value) => {
+                      TRUSTED_QRLPROTO_SHA256.forEach((value) => {
                         if (value.objectSha256) {
                           if (value.objectSha256 === calculatedObjectHash) {
                             verifiedObject = true
@@ -2101,6 +2164,398 @@ const apiCall = (apiUrl, callback) => {
   }
 }
 
+// ============================================================================
+// Promise-based async wrappers for Meteor 3 compatibility
+// These replace Meteor.wrapAsync which was removed in Meteor 3
+// ============================================================================
+
+const connectToNodeAsync = (endpoint) => {
+  return new Promise((resolve, reject) => {
+    connectToNode(endpoint, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const checkNetworkHealthAsync = (userNetwork) => {
+  return new Promise((resolve, reject) => {
+    checkNetworkHealth(userNetwork, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getStatsAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getStats(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getKnownPeersAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getKnownPeers(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getHeightAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getHeight(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getObjectAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getObject(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getAddressStateAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getAddressState(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getFullAddressStateAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getFullAddressState(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getMultiSigAddressStateAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getMultiSigAddressState(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getTransactionsByAddressAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getTransactionsByAddress(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getTokensByAddressAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getTokensByAddress(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getMultiSigAddressesByAddressAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getMultiSigAddressesByAddress(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getMultiSigSpendTxsByAddressAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getMultiSigSpendTxsByAddress(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getOTSAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getOTS(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const getTxnHashAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    getTxnHash(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const transferCoinsAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    transferCoins(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const createMultiSigAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    createMultiSig(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const spendMultiSigAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    spendMultiSig(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const voteMultiSigAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    voteMultiSig(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmTransactionAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmTransaction(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmMultiSigCreateAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmMultiSigCreate(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmMultiSigSpendAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmMultiSigSpend(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmMultiSigVoteAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmMultiSigVote(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const createTokenTxnAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    createTokenTxn(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmTokenCreationAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmTokenCreation(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const createMessageTxnAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    createMessageTxn(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmMessageCreationAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmMessageCreation(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const createKeybaseTxnAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    createKeybaseTxn(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmKeybaseCreationAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmKeybaseCreation(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const createGithubTxnAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    createGithubTxn(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmGithubCreationAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmGithubCreation(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const createTokenTransferTxnAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    createTokenTransferTxn(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const confirmTokenTransferAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    confirmTokenTransfer(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const apiCallAsync = (apiUrl) => {
+  return new Promise((resolve, reject) => {
+    apiCall(apiUrl, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerGetStateAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    ledgerGetState(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerPublicKeyAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    ledgerPublicKey(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerAppVersionAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    ledgerAppVersion(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerLibraryVersionAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    ledgerLibraryVersion(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerVerifyAddressAsync = (request) => {
+  return new Promise((resolve, reject) => {
+    ledgerVerifyAddress(request, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerCreateTxAsync = (sourceAddr, fee, destAddr, destAmount) => {
+  return new Promise((resolve, reject) => {
+    ledgerCreateTx(sourceAddr, fee, destAddr, destAmount, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerRetrieveSignatureAsync = (txn) => {
+  return new Promise((resolve, reject) => {
+    ledgerRetrieveSignature(txn, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerSetIdxAsync = (otsKey) => {
+  return new Promise((resolve, reject) => {
+    ledgerSetIdx(otsKey, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
+const ledgerCreateMessageTxAsync = (sourceAddr, fee, message) => {
+  return new Promise((resolve, reject) => {
+    ledgerCreateMessageTx(sourceAddr, fee, message, (err, res) => {
+      if (err) reject(err)
+      else resolve(res)
+    })
+  })
+}
+
 // Ledger Nano S Integration for Electron Desktop Apps
 
 let transport = null
@@ -2211,99 +2666,84 @@ const ledgerCreateMessageTx = async (sourceAddr, fee, message, cb) => {
 
 // Define Meteor Methods
 Meteor.methods({
-  connectToNode(request) {
-    this.unblock()
+  async connectToNode(request) {
     check(request, String)
-    const response = Meteor.wrapAsync(connectToNode)(request)
+    const response = await connectToNodeAsync(request)
     return response
   },
-  checkNetworkHealth(request) {
-    this.unblock()
+  async checkNetworkHealth(request) {
     check(request, String)
-    const response = Meteor.wrapAsync(checkNetworkHealth)(request)
+    const response = await checkNetworkHealthAsync(request)
     return response
   },
-  status(request) {
-    this.unblock()
+  async status(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(getStats)(request)
+    const response = await getStatsAsync(request)
     return response
   },
-  getPeers(request) {
-    this.unblock()
+  async getPeers(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(getKnownPeers)(request)
+    const response = await getKnownPeersAsync(request)
     return response
   },
-  getHeight(request) {
-    this.unblock()
+  async getHeight(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(getHeight)(request)
+    const response = await getHeightAsync(request)
     return response
   },
-  getObject(request) {
+  async getObject(request) {
     check(request, Object)
-    this.unblock()
-    const response = Meteor.wrapAsync(getObject)(request)
+    const response = await getObjectAsync(request)
     return response
   },
-  getAddressState(request) {
-    this.unblock()
+  async getAddressState(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(getAddressState)(request)
+    const response = await getAddressStateAsync(request)
     return response
   },
-  getFullAddressState(request) {
+  async getFullAddressState(request) {
     check(request, Object)
-    this.unblock()
-    const response = Meteor.wrapAsync(getFullAddressState)(request)
+    const response = await getFullAddressStateAsync(request)
     return response
   },
-  getMultiSigAddressState(request) {
-    this.unblock()
+  async getMultiSigAddressState(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(getMultiSigAddressState)(request)
+    const response = await getMultiSigAddressStateAsync(request)
     return response
   },
-  getTransactionsByAddress(request) {
+  async getTransactionsByAddress(request) {
     check(request, Object)
-    this.unblock()
-    const response = Meteor.wrapAsync(getTransactionsByAddress)(request)
+    const response = await getTransactionsByAddressAsync(request)
     return helpersaddressTransactions(response)
   },
-  getTokensByAddress(request) {
+  async getTokensByAddress(request) {
     check(request, Object)
-    this.unblock()
-    const response = Meteor.wrapAsync(getTokensByAddress)(request)
+    const response = await getTokensByAddressAsync(request)
     return response
   },
-  getMultiSigAddressesByAddress(request) {
+  async getMultiSigAddressesByAddress(request) {
     check(request, Object)
-    this.unblock()
-    const response = Meteor.wrapAsync(getMultiSigAddressesByAddress)(request)
+    const response = await getMultiSigAddressesByAddressAsync(request)
     console.table(response)
     return response
   },
-  getMultiSigSpendTxsByAddress(request) {
+  async getMultiSigSpendTxsByAddress(request) {
     check(request, Object)
-    this.unblock()
-    const response = Meteor.wrapAsync(getMultiSigSpendTxsByAddress)(request)
+    const response = await getMultiSigSpendTxsByAddressAsync(request)
     console.table(response)
     return response
   },
-  getTxnHash(request) {
-    this.unblock()
+  async getTxnHash(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(getTxnHash)(request)
+    const response = await getTxnHashAsync(request)
     return response
   },
 
-  txhash(request) {
-    this.unblock()
+  async txhash(request) {
     check(request, Object)
     let output
     // asynchronous call to API
-    const response = Meteor.wrapAsync(getTxnHash)(request)
+    const response = await getTxnHashAsync(request)
     if (response.transaction.tx.transactionType === 'transfer_token') {
       // Request Token Decimals / Symbol
       const symbolRequest = {
@@ -2313,7 +2753,7 @@ Meteor.methods({
         network: request.network,
       }
 
-      const thisSymbolResponse = Meteor.wrapAsync(getTxnHash)(symbolRequest)
+      const thisSymbolResponse = await getTxnHashAsync(symbolRequest)
       output = helpers.parseTokenAndTransferTokenTx(
         thisSymbolResponse,
         response
@@ -2324,49 +2764,44 @@ Meteor.methods({
     return output
   },
 
-  transferCoins(request) {
-    this.unblock()
+  async transferCoins(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(transferCoins)(request)
+    const response = await transferCoinsAsync(request)
     return response
   },
-  createMultiSig(request) {
-    this.unblock()
+  async createMultiSig(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(createMultiSig)(request)
+    const response = await createMultiSigAsync(request)
     return response
   },
-  spendMultiSig(request) {
-    this.unblock()
+  async spendMultiSig(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(spendMultiSig)(request)
+    const response = await spendMultiSigAsync(request)
     return response
   },
-  voteMultiSig(request) {
-    this.unblock()
+  async voteMultiSig(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(voteMultiSig)(request)
+    const response = await voteMultiSigAsync(request)
     return response
   },
-  getOTS(request) {
+  async getOTS(request) {
     check(request, Object)
-    this.unblock()
-    const response = Meteor.wrapAsync(getOTS)(request)
+    const response = await getOTSAsync(request)
     return response
   },
-  addressTransactions(request) {
+  async addressTransactions(request) {
     check(request, Object)
     const targets = request.tx
     const result = []
 
-    targets.forEach((arr) => {
+    for (const arr of targets) {
       const thisRequest = {
         query: arr.txhash,
         network: request.network,
       }
 
       try {
-        const thisTxnHashResponse = Meteor.wrapAsync(getTxnHash)(thisRequest)
+        const thisTxnHashResponse = await getTxnHashAsync(thisRequest)
 
         const output = helpers.txhash(thisTxnHashResponse)
 
@@ -2422,7 +2857,7 @@ Meteor.methods({
             ),
             network: request.network,
           }
-          const thisSymbolResponse = Meteor.wrapAsync(getTxnHash)(symbolRequest)
+          const thisSymbolResponse = await getTxnHashAsync(symbolRequest)
           const helpersResponse = helpers.parseTokenAndTransferTokenTx(
             thisSymbolResponse,
             thisTxnHashResponse
@@ -2537,138 +2972,117 @@ Meteor.methods({
           `Error fetching transaction hash in addressTransactions '${arr.txhash}' - ${err}`
         )
       }
-    })
+    }
 
     return result
   },
-  confirmTransaction(request) {
-    this.unblock()
+  async confirmTransaction(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmTransaction)(request)
+    const response = await confirmTransactionAsync(request)
     return response
   },
-  confirmMultiSigCreate(request) {
-    this.unblock()
+  async confirmMultiSigCreate(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmMultiSigCreate)(request)
+    const response = await confirmMultiSigCreateAsync(request)
     return response
   },
-  confirmMultiSigSpend(request) {
-    this.unblock()
+  async confirmMultiSigSpend(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmMultiSigSpend)(request)
+    const response = await confirmMultiSigSpendAsync(request)
     return response
   },
-  confirmMultiSigVote(request) {
-    this.unblock()
+  async confirmMultiSigVote(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmMultiSigVote)(request)
+    const response = await confirmMultiSigVoteAsync(request)
     return response
   },
-  createMessageTxn(request) {
-    this.unblock()
+  async createMessageTxn(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(createMessageTxn)(request)
+    const response = await createMessageTxnAsync(request)
     return response
   },
-  createKeybaseTxn(request) {
-    this.unblock()
+  async createKeybaseTxn(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(createKeybaseTxn)(request)
+    const response = await createKeybaseTxnAsync(request)
     return response
   },
-  createGithubTxn(request) {
-    this.unblock()
+  async createGithubTxn(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(createGithubTxn)(request)
+    const response = await createGithubTxnAsync(request)
     return response
   },
-  confirmMessageCreation(request) {
-    this.unblock()
+  async confirmMessageCreation(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmMessageCreation)(request)
+    const response = await confirmMessageCreationAsync(request)
     return response
   },
-  confirmKeybaseCreation(request) {
-    this.unblock()
+  async confirmKeybaseCreation(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmKeybaseCreation)(request)
+    const response = await confirmKeybaseCreationAsync(request)
     return response
   },
-  confirmGithubCreation(request) {
-    this.unblock()
+  async confirmGithubCreation(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmGithubCreation)(request)
+    const response = await confirmGithubCreationAsync(request)
     return response
   },
-  createTokenTxn(request) {
-    this.unblock()
+  async createTokenTxn(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(createTokenTxn)(request)
+    const response = await createTokenTxnAsync(request)
     return response
   },
-  confirmTokenCreation(request) {
-    this.unblock()
+  async confirmTokenCreation(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmTokenCreation)(request)
+    const response = await confirmTokenCreationAsync(request)
     return response
   },
-  createTokenTransferTxn(request) {
-    this.unblock()
+  async createTokenTransferTxn(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(createTokenTransferTxn)(request)
+    const response = await createTokenTransferTxnAsync(request)
     return response
   },
-  confirmTokenTransfer(request) {
-    this.unblock()
+  async confirmTokenTransfer(request) {
     check(request, Object)
-    const response = Meteor.wrapAsync(confirmTokenTransfer)(request)
+    const response = await confirmTokenTransferAsync(request)
     return response
   },
-  QRLvalue() {
-    this.unblock()
+  async QRLvalue() {
     const apiUrl = 'https://bittrex.com/api/v1.1/public/getmarketsummary?market=btc-qrl'
     const apiUrlUSD = 'https://bittrex.com/api/v1.1/public/getmarketsummary?market=usdt-btc'
     // asynchronous call to API
-    const response = Meteor.wrapAsync(apiCall)(apiUrl)
-    const responseUSD = Meteor.wrapAsync(apiCall)(apiUrlUSD)
+    const response = await apiCallAsync(apiUrl)
+    const responseUSD = await apiCallAsync(apiUrlUSD)
     const usd = response.result[0].Last * responseUSD.result[0].Last
     return usd
   },
-  ledgerGetState(request) {
-    this.unblock()
+  async ledgerGetState(request) {
     check(request, Array)
-    const response = Meteor.wrapAsync(ledgerGetState)(request)
+    const response = await ledgerGetStateAsync(request)
     console.log('res')
     console.log(response)
     return response
   },
-  ledgerPublicKey(request) {
-    this.unblock()
+  async ledgerPublicKey(request) {
     check(request, Array)
-    const response = Meteor.wrapAsync(ledgerPublicKey)(request)
+    const response = await ledgerPublicKeyAsync(request)
     return response
   },
-  ledgerAppVersion(request) {
-    this.unblock()
+  async ledgerAppVersion(request) {
     check(request, Array)
-    const response = Meteor.wrapAsync(ledgerAppVersion)(request)
+    const response = await ledgerAppVersionAsync(request)
     return response
   },
-  ledgerLibraryVersion(request) {
-    this.unblock()
+  async ledgerLibraryVersion(request) {
     check(request, Array)
-    const response = Meteor.wrapAsync(ledgerLibraryVersion)(request)
+    const response = await ledgerLibraryVersionAsync(request)
     return response
   },
-  ledgerVerifyAddress(request) {
-    this.unblock()
+  async ledgerVerifyAddress(request) {
     check(request, Array)
-    const response = Meteor.wrapAsync(ledgerVerifyAddress)(request)
+    const response = await ledgerVerifyAddressAsync(request)
     return response
   },
-  ledgerCreateTx(sourceAddr, fee, destAddr, destAmount) {
-    this.unblock()
+  async ledgerCreateTx(sourceAddr, fee, destAddr, destAmount) {
     check(sourceAddr, Match.Any)
     check(fee, Match.Any)
     check(destAddr, Match.Any)
@@ -2685,7 +3099,7 @@ Meteor.methods({
       destAmount
     )
 
-    const response = Meteor.wrapAsync(ledgerCreateTx)(
+    const response = await ledgerCreateTxAsync(
       sourceAddr,
       fee,
       destAddr,
@@ -2693,28 +3107,25 @@ Meteor.methods({
     )
     return response
   },
-  ledgerCreateMessageTx(sourceAddr, fee, message) {
-    this.unblock()
+  async ledgerCreateMessageTx(sourceAddr, fee, message) {
     check(sourceAddr, Match.Any)
     check(fee, Match.Any)
     check(message, Match.Any)
-    const response = Meteor.wrapAsync(ledgerCreateMessageTx)(
+    const response = await ledgerCreateMessageTxAsync(
       sourceAddr,
       fee,
       message
     )
     return response
   },
-  ledgerRetrieveSignature(request) {
-    this.unblock()
+  async ledgerRetrieveSignature(request) {
     check(request, Match.Any)
-    const response = Meteor.wrapAsync(ledgerRetrieveSignature)(request)
+    const response = await ledgerRetrieveSignatureAsync(request)
     return response
   },
-  ledgerSetIdx(request) {
-    this.unblock()
+  async ledgerSetIdx(request) {
     check(request, Match.Any)
-    const response = Meteor.wrapAsync(ledgerSetIdx)(request)
+    const response = await ledgerSetIdxAsync(request)
     return response
   },
 })

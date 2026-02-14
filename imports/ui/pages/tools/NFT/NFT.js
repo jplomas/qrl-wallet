@@ -1,3 +1,4 @@
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 /* eslint no-console:0 */
 /* global QRLLIB, XMSS_OBJECT, LocalStore, QrlLedger, isElectrified, selectedNetwork,loadAddressTransactions, getTokenBalances, updateBalanceField, refreshTransferPage */
 /* global pkRawToB32Address, hexOrB32, rawToHexOrB32, anyAddressToRawAddress, stringToBytes, binaryToBytes, bytesToString, bytesToHex, hexToBytes, toBigendianUint64BytesUnsigned, numberToString, decimalToBinary */
@@ -67,7 +68,7 @@ function createTokenTxn() {
   // Fail if OTS Key reuse is detected
   if (otsIndexUsed(Session.get('otsBitfield'), otsKey)) {
     $('#generating').hide()
-    $('#otsKeyReuseDetected').modal('show')
+    window.walletUi.showModal('#otsKeyReuseDetected')
     return
   }
 
@@ -108,7 +109,7 @@ function createTokenTxn() {
     Session.set('maxDecimals', maxAllowedDecimals(tokenTotalSupply))
     Session.set('tokenTotalSupply', tokenTotalSupply)
     $('#generating').hide()
-    $('#maxDecimalsReached').modal('show')
+    window.walletUi.showModal('#maxDecimalsReached')
     return
   }
 
@@ -179,7 +180,7 @@ function createTokenTxn() {
         // Hide generating component
         $('#generating').hide()
         // Show warning modal
-        $('#invalidNodeResponse').modal('show')
+        window.walletUi.showModal('#invalidNodeResponse')
       }
     }
   })
@@ -297,12 +298,12 @@ function initialiseFormValidation() {
   }
 
   // Max of 9 decimals
-  $.fn.form.settings.rules.maxDecimals = function (value) {
+  window.walletUi.addFormRule('maxDecimals', function (value) {
     return countDecimals(value) <= 9
-  }
+  })
 
   // Initliase the form validation
-  $('.ui.form').form({
+  window.walletUi.bindFormValidation('form', {
     fields: validationRules,
   })
 }
@@ -312,7 +313,7 @@ Template.appNFT.onRendered(() => {
   ledgerHasNoTokenSupport()
 
   // Initialise dropdowns
-  $('.ui.dropdown').dropdown()
+  window.walletUi.initDropdowns('select')
 
   // Set default transfer recipients to 1
   countRecipientsForValidation = 1
@@ -325,7 +326,7 @@ Template.appNFT.onRendered(() => {
     // Show warning is otsKeysRemaining is low
     if (Session.get('otsKeysRemaining') < 50) {
       // Shown low OTS Key warning modal
-      $('#lowOtsKeyWarning').modal('transition', 'disable').modal('show')
+      window.walletUi.showModal('#lowOtsKeyWarning')
     }
   })
 })
@@ -417,15 +418,15 @@ Template.appNFT.events({
     const newTokenHolderHtml = `
       <div class="field">
         <label>Holder Balance</label>
-        <div class="three fields">
-          <div class="ten wide field">
+        <div class="grid gap-3 md:grid-cols-10">
+          <div class="md:col-span-6">
             <input type="text" id="initialBalancesAddress_${countRecipientsForValidation}" name="initialBalancesAddress[]" placeholder="Token Holder QRL Address">
           </div>
-          <div class="five wide field">
+          <div class="md:col-span-3">
             <input type="text" id="initialBalancesAddressAmount_${countRecipientsForValidation}" name="initialBalancesAddressAmount[]" placeholder="Token Balance">
           </div>
-          <div class="one wide field">
-            <button class="ui red button removeTokenHolder"><i class="remove user icon"></i></button>
+          <div class="md:col-span-1">
+            <button class="btn btn-error w-full removeTokenHolder"><span aria-hidden="true">−</span></button>
           </div>
         </div>
       </div>

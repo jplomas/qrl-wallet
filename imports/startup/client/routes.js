@@ -1,8 +1,11 @@
-import { FlowRouter } from 'meteor/kadira:flow-router'
-import { BlazeLayout } from 'meteor/kadira:blaze-layout'
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
+import { BlazeLayout } from 'meteor/pwix:blaze-layout'
 
 // Import needed templates
+import '/imports/ui/layouts/body/appBodyLayout.html'
+import '/imports/ui/layouts/body/customNode.html'
 import '../../ui/layouts/body/body.js'
+import '../../ui/components/qrcode/qrcode.js'
 import '../../ui/pages/not-found/not-found.js'
 import '../../ui/pages/create/create.js'
 import '../../ui/pages/create/address.js'

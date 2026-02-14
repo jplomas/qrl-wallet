@@ -1,3 +1,4 @@
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 /* eslint no-console:0 */
 /* global QRLLIB, XMSS_OBJECT, LocalStore, QrlLedger, isElectrified, selectedNetwork,loadAddressTransactions, getTokenBalances, updateBalanceField, refreshTransferPage */
 /* global pkRawToB32Address, hexOrB32, rawToHexOrB32, anyAddressToRawAddress, stringToBytes, binaryToBytes, bytesToString, bytesToHex, hexToBytes, toBigendianUint64BytesUnsigned, numberToString, decimalToBinary */
@@ -131,7 +132,7 @@ function confirmMessageCreation() {
     $('#noRemainingSignatures').hide()
 
     // Show ledger sign modal
-    $('#ledgerConfirmationModal').modal({
+    window.walletUi.showModal('#ledgerConfirmationModal', {
       closable: false,
       onDeny: () => {
         // Clear session state for transaction
@@ -140,7 +141,7 @@ function confirmMessageCreation() {
       },
       onApprove: () => {
         // Hide modal, and show relaying message
-        $('#ledgerConfirmationModal').modal('hide')
+        window.walletUi.hideModal('#ledgerConfirmationModal')
         $('#relaying').show()
 
         // Relay the transaction
@@ -162,7 +163,7 @@ function confirmMessageCreation() {
           }
         })
       },
-    }).modal('show')
+    })
 
     // Create a transaction
     const sourceAddr = hexToBytes(QRLLIB.getAddress(getXMSSDetails().pk))
@@ -233,7 +234,7 @@ function cancelTransaction() {
 }
 
 Template.appNotariseConfirm.onRendered(() => {
-  $('.ui.dropdown').dropdown()
+  window.walletUi.initDropdowns('select')
 })
 
 Template.appNotariseConfirm.events({

@@ -1,226 +1,267 @@
 <template name="appVerifyTxid">
-
-{{#with tx}}
-  {{#if error}}
-    <h3 class="ui pageHeader header">
-      <i class="tiny plus icon"></i>
-      <div class="content wordBreak">
-        Transaction {{tx.parameter}}
-      </div>
-    </h3>
-    <div class="ui negative message">
-      <i class="close icon"></i>
-      <div class="header">
-        Error reading transaction
-      </div>
-      <p>{{tx.error}}</p>
-    </div>
-  {{else}}
-    {{#if notFound}}
-      <h3 class="ui pageHeader header">
-        <i class="tiny plus icon"></i>
-        <div class="content wordBreak">
-          Transaction {{tx.parameter}}
+  {{#with tx}}
+    {{#if error}}
+      <div class="flex items-center gap-3 mb-6">
+        <div class="bg-error/20 p-3 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M5.5 20h13a2 2 0 001.73-3l-6.5-11.5a2 2 0 00-3.46 0L3.77 17a2 2 0 001.73 3z" />
+          </svg>
         </div>
-      </h3>
-      <div class="ui negative message">
-        <i class="close icon"></i>
-        Transaction <span class="hack">{{id}}</span> not found
+        <h1 class="text-xl font-bold break-all">Transaction {{tx.parameter}}</h1>
+      </div>
+      <div role="alert" class="alert alert-error">
+        <span>Error reading transaction: {{tx.error}}</span>
       </div>
     {{else}}
-      <h3 class="ui pageHeader header">
-        <i class="tiny plus icon"></i>
-        <div class="content wordBreak">
-          Transaction {{tx.tx.transaction_hash}}
-        </div>
-      </h3>
-
-      <div class="ui segment pageSegment">
-
-        <div class="description">
-          <div class="ui celled horizontal list">
-            <div class="item"><strong>Confirmations</strong> {{#if isConfirmed}} {{confirmations}} confirmations {{else}}Unconfirmed{{/if}}</div>
-            <div class="item"><strong>Block</strong> <a href="{{nodeExplorerUrl}}/block/{{tx.header.block_number}}">{{tx.header.block_number}}</a></div>
-            <div class="item"><strong>Nonce</strong> {{tx.tx.nonce}}</div>
-            <div class="item"><strong>OTS key</strong> {{tx.tx.ots_key}}</div>
-            <div class="item"><strong>Fee</strong> {{tx.tx.fee}} Quanta</div>
-            <!-- <div class="item"><strong>Size</strong> {{txSize}}</div>             -->
-            <div class="item"><strong>Status</strong> {{#if isConfirmed}} OK <i class="ui green circle icon"></i> {{ts}} {{else}} Unconfirmed <i class="ui yellow circle icon"></i>{{/if}}</div>
+      {{#if notFound}}
+        <div class="flex items-center gap-3 mb-6">
+          <div class="bg-warning/20 p-3 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0m-8.485 8.485a8 8 0 1111.314 0" />
+            </svg>
           </div>
-          <div class="ui hidden divider"></div>
+          <h1 class="text-xl font-bold break-all">Transaction {{tx.parameter}}</h1>
+        </div>
+        <div role="alert" class="alert alert-error">
+          <span>Transaction <span class="font-mono">{{id}}</span> not found</span>
+        </div>
+      {{else}}
+        <div class="flex items-center gap-3 mb-6">
+          <div class="bg-info/20 p-3 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 21a9 9 0 100-18 9 9 0 000 18z" />
+            </svg>
+          </div>
+          <h1 class="text-xl font-bold break-all">Transaction {{tx.tx.transaction_hash}}</h1>
         </div>
 
-        <div class="ui bottom attached tab segment active">
-          <div class="ui stackable grid">
-            <div class="sixteen wide column">
-              <div class="ui basic center aligned segment">
-                <div class="ui statistic">
+        <div class="card-gradient space-y-6">
+          <div class="flex flex-wrap gap-2 text-sm">
+            <span class="badge badge-outline">
+              Confirmations:
+              {{#if isConfirmed}} {{confirmations}} {{else}} Unconfirmed {{/if}}
+            </span>
+            <span class="badge badge-outline">Block: <a class="underline ml-1" href="{{nodeExplorerUrl}}/block/{{tx.header.block_number}}">{{tx.header.block_number}}</a></span>
+            <span class="badge badge-outline">Nonce: {{tx.tx.nonce}}</span>
+            <span class="badge badge-outline">OTS key: {{tx.tx.ots_key}}</span>
+            <span class="badge badge-outline">Fee: {{tx.tx.fee}} Quanta</span>
+            <span class="badge badge-outline">
+              Status:
+              {{#if isConfirmed}} Confirmed {{ts}} {{else}} Unconfirmed {{/if}}
+            </span>
+          </div>
 
-                  <div class="ui {{color}} label">{{explorer.type}}{{#if isTokenTransfer}}: {{explorer.symbol}} {{/if}}</div>
-                  
-                  {{#if isNotMessage}}
-                    {{#if isToken}}
-                      <strong>{{explorer.name}} ({{explorer.symbol}})</strong><br />
-                      owned by:<br />
-                      <a href="{{nodeExplorerUrl}}/a/{{# if bech32}}{{explorer.owner_b32}}{{else}}{{explorer.owner_hex}}{{/if}}">{{# if bech32}}{{explorer.owner_b32}}{{else}}{{explorer.owner_hex}}{{/if}}</a>
+          <div class="card bg-base-200 border border-base-300">
+            <div class="card-body items-center text-center">
+              <div class="badge {{color}} badge-lg">
+                {{explorer.type}}{{#if isTokenTransfer}}: {{explorer.symbol}}{{/if}}
+              </div>
+
+              {{#if isNotMessage}}
+                {{#if isToken}}
+                  <p class="font-semibold mt-2">{{explorer.name}} ({{explorer.symbol}})</p>
+                  <p class="text-sm text-base-content/70">owned by:</p>
+                  <a class="font-mono break-all text-primary" href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{explorer.owner_b32}}{{else}}{{explorer.owner_hex}}{{/if}}">
+                    {{#if bech32}}{{explorer.owner_b32}}{{else}}{{explorer.owner_hex}}{{/if}}
+                  </a>
+                {{else}}
+                  {{#if isTokenTransfer}}
+                    <p class="hero-number mt-2">{{explorer.totalTransferred}}</p>
+                    <p class="text-sm">{{explorer.symbol}} ({{explorer.name}}) transferred</p>
+                    <p class="text-xs text-base-content/70 mt-2">Token creation transaction</p>
+                    <a href="{{nodeExplorerUrl}}/tx/{{explorer.token_txhash}}" class="font-mono break-all text-primary">{{explorer.token_txhash}}</a>
+                  {{else}}
+                    {{#if isMultiSigCreateTxn}}
                     {{else}}
-                      {{#if isTokenTransfer}}
-                        <div class="value">{{explorer.totalTransferred}}</div>
-                        {{explorer.symbol}} ({{explorer.name}})<br />
-                        tokens transferred
-                        <div class="label">Token creation transaction: </div>
-                        <a href="{{nodeExplorerUrl}}/tx/{{explorer.token_txhash}}" class="unbreakable">{{explorer.token_txhash}}</a>
-                      {{else}}
-                      {{#if isMultiSigCreateTxn}}
-                      {{else}}
-                        <div class="value" data-html="<div class='content'>USD ${{qrl}}</div>">
-                          {{tx.tx.amount}}
-                        </div>
-                        <div class="label">
-                          Quanta<br><small>USD ${{qrl}}</small>
-                        </div>
-                        {{/if}}
-                      {{/if}}
+                      <p class="hero-number mt-2">{{tx.tx.amount}}</p>
+                      <p class="text-sm">Quanta</p>
+                      <p class="text-xs text-base-content/70">USD ${{qrl}}</p>
                     {{/if}}
                   {{/if}}
-                </div>
-              </div>
+                {{/if}}
+              {{/if}}
             </div>
           </div>
 
           {{#if isToken}}
-            <h4>Initial balances</h4>
-            <table class="ui stackable table">
-              <thead>
-                <th>Address</th>
-                <th>Balance</th>
-              </thead>
-              <tbody>
-                {{#each explorer.initialBalances}}
-                  <tr>
-                    <td><a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}">{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}</a></td>
-                    <td>{{this.amount}}</td>
-                  </tr>
-                {{/each}}
-              </tbody>
-            </table>
+            <div>
+              <h3 class="text-lg font-semibold mb-2">Initial balances</h3>
+              <div class="overflow-x-auto">
+                <table class="table table-zebra w-full table-sm">
+                  <thead>
+                    <tr>
+                      <th>Address</th>
+                      <th>Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {{#each explorer.initialBalances}}
+                      <tr>
+                        <td class="font-mono break-all">
+                          <a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}">
+                            {{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}
+                          </a>
+                        </td>
+                        <td>{{this.amount}}</td>
+                      </tr>
+                    {{/each}}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           {{else}}
             {{#if isNotCoinbase}}
-            <h3><i class="left arrow icon"></i> From</h3>
-            <table class="ui stackable table">
-              <thead>
-                <th>Address</th>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><a href="{{nodeExplorerUrl}}/a/{{# if bech32}}{{explorer.from_b32}}{{else}}{{explorer.from_hex}}{{/if}}">{{# if bech32}}{{explorer.from_b32}}{{else}}{{explorer.from_hex}}{{/if}}</a></td>
-                  </tr>
-                </tbody>
-              </table>
+              <div>
+                <h3 class="text-lg font-semibold mb-2">From</h3>
+                <div class="overflow-x-auto">
+                  <table class="table table-zebra w-full table-sm">
+                    <thead>
+                      <tr>
+                        <th>Address</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="font-mono break-all">
+                          <a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{explorer.from_b32}}{{else}}{{explorer.from_hex}}{{/if}}">
+                            {{#if bech32}}{{explorer.from_b32}}{{else}}{{explorer.from_hex}}{{/if}}
+                          </a>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             {{/if}}
 
             {{#if isMessage}}
-              <h3>Message</h3>
-              <p><pre>{{explorer.message}}</pre></p>
+              <div>
+                <h3 class="text-lg font-semibold mb-2">Message</h3>
+                <pre class="bg-base-200 border border-base-300 rounded-lg p-4 whitespace-pre-wrap break-all">{{explorer.message}}</pre>
+              </div>
             {{else}}
               {{#if isDocumentNotarisation}}
-                <h3>Document Notarisaion</h3>
-                <span>Notary <a class="ui">{{# if bech32}}{{explorer.from_b32}}{{else}}{{explorer.from_hex}}{{/if}}</a></span>
-                <br />
-                <span>Hash Function <a class="ui">{{explorer.hash_function}}</a></span>
-                <br />
-                <span>File Hash <a class="ui">{{explorer.hash}}</a></span>
-                <br />
-                <span>Additional Text <a class="ui">{{explorer.text}}</a></span>
-                <br />
+                <div class="space-y-1 text-sm">
+                  <h3 class="text-lg font-semibold mb-2">Document Notarisation</h3>
+                  <p>Notary: <span class="font-mono break-all">{{#if bech32}}{{explorer.from_b32}}{{else}}{{explorer.from_hex}}{{/if}}</span></p>
+                  <p>Hash Function: <span class="font-mono">{{explorer.hash_function}}</span></p>
+                  <p>File Hash: <span class="font-mono break-all">{{explorer.hash}}</span></p>
+                  <p>Additional Text: <span class="font-mono break-all">{{explorer.text}}</span></p>
+                </div>
               {{else}}
-              {{#if isMultiSigCreateTxn}}
-                  <h4>Signatories</h4>
-                  <table class="ui table">
-                    <thead><th>Address</th><th>Weight</th></thead>
-                    <tbody>
-                      {{#each multiSigSignatories this.tx.multi_sig_create}}
-                      <tr>
-                      <td>
-                        <!-- {{# if bech32}}{{ this.address_b32 }}{{else}} -->
-                        {{ this.address_hex}}
-                        <!-- {{/if}} -->
-                      </td>
-                      <td>{{ this.weight }}</td>
-                      </tr>
-                      {{/each}}
-                    </tbody>
-                    <tfoot>
-                      <th>Threshold for spend</th>
-                      <th>{{ this.tx.multi_sig_create.threshold }}</th>
-                    </tfoot>
-                  </table>
+                {{#if isMultiSigCreateTxn}}
+                  <div>
+                    <h3 class="text-lg font-semibold mb-2">Signatories</h3>
+                    <div class="overflow-x-auto">
+                      <table class="table table-zebra w-full table-sm">
+                        <thead>
+                          <tr>
+                            <th>Address</th>
+                            <th>Weight</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {{#each multiSigSignatories this.tx.multi_sig_create}}
+                            <tr>
+                              <td class="font-mono break-all">{{this.address_hex}}</td>
+                              <td>{{this.weight}}</td>
+                            </tr>
+                          {{/each}}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <th>Threshold for spend</th>
+                            <th>{{this.tx.multi_sig_create.threshold}}</th>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
                 {{else}}
-                {{#if isMultiSigVoteTxn}}
-                <table class="ui table">
-                  <tr>
-                    <td><strong>Spend transaction</strong></td>
-                    <td style="font-family: Hack;"><a href="/tx/{{ this.tx.multi_sig_vote.shared_key }}">{{ this.tx.multi_sig_vote.shared_key }}</a></td>
-                  </tr>
-                  <tr>
-                      <td><strong>Vote status</strong></td>
-                      <td>{{ #if this.tx.multi_sig_vote.unvote }}Approval revoked{{else}}Transaction approved{{/if}}</td>
-                  </tr>
-                </table>
-                {{else}}
-                <h3><i class="right arrow icon"></i> To</h3>
-                <table class="ui stackable table">
-                  <thead>
-                    <th>Address</th>
-                    <th>Amount</th>
-                  </thead>
-                  <tbody>
-                    {{#if isTransfer}}
-                      {{#each explorer.outputs}}
-                        <tr>
-                          <td><a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}">{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}</a></td>
-                          <td>{{this.amount}}</td>
-                        </tr>
-                      {{/each}}
-                    {{else if isTokenTransfer}}
-                      {{#each explorer.outputs}}
-                        <tr>
-                          <td><a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}">{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}</a></td>
-                          <td>{{this.amount}}</td>
-                        </tr>
-                      {{/each}}
-                    {{else}}
-                      <tr>
-                        <td><a href="{{nodeExplorerUrl}}/a/{{# if bech32}}{{explorer.to_b32}}{{else}}{{explorer.to_hex}}{{/if}}">{{# if bech32}}{{explorer.to_b32}}{{else}}{{explorer.to_hex}}{{/if}}</a></td>
-                        <td>{{tx.tx.amount}}</td>
-                      </tr>
-                    {{/if}}
-                  </tbody>
-                </table>
+                  {{#if isMultiSigVoteTxn}}
+                    <div class="overflow-x-auto">
+                      <table class="table table-zebra w-full table-sm">
+                        <tbody>
+                          <tr>
+                            <td><strong>Spend transaction</strong></td>
+                            <td class="font-mono break-all"><a href="/tx/{{this.tx.multi_sig_vote.shared_key}}">{{this.tx.multi_sig_vote.shared_key}}</a></td>
+                          </tr>
+                          <tr>
+                            <td><strong>Vote status</strong></td>
+                            <td>{{#if this.tx.multi_sig_vote.unvote}}Approval revoked{{else}}Transaction approved{{/if}}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  {{else}}
+                    <div>
+                      <h3 class="text-lg font-semibold mb-2">To</h3>
+                      <div class="overflow-x-auto">
+                        <table class="table table-zebra w-full table-sm">
+                          <thead>
+                            <tr>
+                              <th>Address</th>
+                              <th>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {{#if isTransfer}}
+                              {{#each explorer.outputs}}
+                                <tr>
+                                  <td class="font-mono break-all">
+                                    <a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}">
+                                      {{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}
+                                    </a>
+                                  </td>
+                                  <td>{{this.amount}}</td>
+                                </tr>
+                              {{/each}}
+                            {{else if isTokenTransfer}}
+                              {{#each explorer.outputs}}
+                                <tr>
+                                  <td class="font-mono break-all">
+                                    <a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}">
+                                      {{#if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}
+                                    </a>
+                                  </td>
+                                  <td>{{this.amount}}</td>
+                                </tr>
+                              {{/each}}
+                            {{else}}
+                              <tr>
+                                <td class="font-mono break-all">
+                                  <a href="{{nodeExplorerUrl}}/a/{{#if bech32}}{{explorer.to_b32}}{{else}}{{explorer.to_hex}}{{/if}}">
+                                    {{#if bech32}}{{explorer.to_b32}}{{else}}{{explorer.to_hex}}{{/if}}
+                                  </a>
+                                </td>
+                                <td>{{tx.tx.amount}}</td>
+                              </tr>
+                            {{/if}}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  {{/if}}
                 {{/if}}
-              {{/if}}
               {{/if}}
             {{/if}}
           {{/if}}
+
           {{#if hasMessage}}
-          <table class="ui stackable table">
-            <thead>
-              <th>Message</th>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{{tfMessage}}</td>
-              </tr>
-            </tbody>
-            </table>
+            <div>
+              <h3 class="text-lg font-semibold mb-2">Message</h3>
+              <div class="bg-base-200 border border-base-300 rounded-lg p-4 font-mono break-all">{{tfMessage}}</div>
+            </div>
           {{/if}}
-          <button class="ui mini button jsonclick">Meta <i class="down angle icon"></i></button>
-          <div class="ui raised segment jsonbox json" style="display: none">{{json}}</div>
+
+          <div>
+            <button class="btn btn-sm btn-outline jsonclick">Meta</button>
+            <div class="jsonbox hidden mt-3 bg-base-200 border border-base-300 rounded-lg p-3 overflow-x-auto">
+              <div class="json"></div>
+            </div>
+          </div>
         </div>
-      </div>
-
+      {{/if}}
     {{/if}}
-  {{/if}}
-{{/with}}
-
+  {{/with}}
 </template>

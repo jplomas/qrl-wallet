@@ -1,3 +1,4 @@
+import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 /* eslint no-console:0, no-len: 0 */
 /* global _, QRLLIB, XMSS_OBJECT, LocalStore, QrlLedger, isElectrified, selectedNetwork,loadAddressTransactions, getTokenBalances, updateBalanceField, refreshTransferPage */
 /* global pkRawToB32Address, hexOrB32, rawToHexOrB32, anyAddressToRawAddress, stringToBytes, binaryToBytes, bytesToString, bytesToHex, hexToBytes, toBigendianUint64BytesUnsigned, numberToString, decimalToBinary */
@@ -107,7 +108,7 @@ function generateTransaction() {
     // Fail early if attempting to send to an Ethereum style 0x address
     if (thisAddress[0] === '0' && thisAddress[1] === 'x') {
       $('#generating').hide()
-      $('#invalidAddress0x').modal('show')
+      window.walletUi.showModal('#invalidAddress0x')
       return
     }
 
@@ -117,16 +118,16 @@ function generateTransaction() {
   // Fail if more than 3 recipients using Ledger
   if (thisAddressesTo.length > 3 && getXMSSDetails().walletType === 'ledger') {
     $('#generating').hide()
-    $('#maxThreeRecipientsLedger').modal('show')
+    window.walletUi.showModal('#maxThreeRecipientsLedger')
   }
 
   // Fail if OTS Key reuse is detected
   if (otsIndexUsed(Session.get('otsBitfield'), otsKey)) {
     $('#generating').hide()
     if (getXMSSDetails().walletType === 'ledger') {
-      $('#ledgerOtsKeyReuseDetected').modal('show')
+      window.walletUi.showModal('#ledgerOtsKeyReuseDetected')
     } else {
-      $('#otsKeyReuseDetected').modal('show')
+      window.walletUi.showModal('#otsKeyReuseDetected')
     }
     return
   }
@@ -227,7 +228,7 @@ function generateTransaction() {
         // Hide generating component
         $('#generating').hide()
         // Show warning modal
-        $('#invalidNodeResponse').modal('show')
+        window.walletUi.showModal('#invalidNodeResponse')
       }
     }
   })
@@ -350,52 +351,50 @@ function confirmTransaction() {
     $('#noRemainingSignatures').hide()
 
     // Show ledger sign modal
-    $('#ledgerConfirmationModal')
-      .modal({
-        closable: false,
-        onDeny: () => {
-          // Clear session state for transaction
-          Session.set('ledgerTransaction', '')
-          Session.set('ledgerTransactionHash', '')
-        },
-        onApprove: () => {
-          // Hide modal, and show relaying message
-          $('#ledgerConfirmationModal').modal('hide')
-          $('#relaying').show()
+    window.walletUi.showModal('#ledgerConfirmationModal', {
+      closable: false,
+      onDeny: () => {
+        // Clear session state for transaction
+        Session.set('ledgerTransaction', '')
+        Session.set('ledgerTransactionHash', '')
+      },
+      onApprove: () => {
+        // Hide modal, and show relaying message
+        window.walletUi.hideModal('#ledgerConfirmationModal')
+        $('#relaying').show()
 
-          // Relay the transaction
-          wrapMeteorCall(
-            'confirmTransaction',
-            Session.get('ledgerTransaction'),
-            (err, res) => {
-              if (res.error) {
-                $('#transactionConfirmation').hide()
-                $('#transactionFailed').show()
+        // Relay the transaction
+        wrapMeteorCall(
+          'confirmTransaction',
+          Session.get('ledgerTransaction'),
+          (err, res) => {
+            if (res.error) {
+              $('#transactionConfirmation').hide()
+              $('#transactionFailed').show()
 
-                Session.set('transactionFailed', res.error)
-              } else {
-                Session.set(
-                  'transactionHash',
-                  Session.get('ledgerTransactionHash')
-                )
-                Session.set('transactionSignature', res.response.signature)
-                Session.set('transactionRelayedThrough', res.relayed)
+              Session.set('transactionFailed', res.error)
+            } else {
+              Session.set(
+                'transactionHash',
+                Session.get('ledgerTransactionHash')
+              )
+              Session.set('transactionSignature', res.response.signature)
+              Session.set('transactionRelayedThrough', res.relayed)
 
-                // Show result
-                $('#generateTransactionArea').hide()
-                $('#confirmTransactionArea').hide()
-                enableSendButton()
-                $('#transactionResultArea').show()
+              // Show result
+              $('#generateTransactionArea').hide()
+              $('#confirmTransactionArea').hide()
+              enableSendButton()
+              $('#transactionResultArea').show()
 
-                // Start polling this transcation
-                // eslint-disable-next-line no-use-before-define
-                pollTransaction(Session.get('transactionHash'), true)
-              }
+              // Start polling this transcation
+              // eslint-disable-next-line no-use-before-define
+              pollTransaction(Session.get('transactionHash'), true)
             }
-          )
-        },
-      })
-      .modal('show')
+          }
+        )
+      },
+    })
 
     // Create a transaction
     const sourceAddr = hexToBytes(QRLLIB.getAddress(getXMSSDetails().pk))
@@ -502,7 +501,7 @@ function sendTokensTxnCreate(tokenHash, decimals) {
   // Fail if OTS Key reuse is detected
   if (otsIndexUsed(Session.get('otsBitfield'), otsKey)) {
     $('#generating').hide()
-    $('#otsKeyReuseDetected').modal('show')
+    window.walletUi.showModal('#otsKeyReuseDetected')
     return
   }
 
@@ -617,7 +616,7 @@ function sendTokensTxnCreate(tokenHash, decimals) {
         $('#generateTransactionArea').hide()
         $('#confirmTokenTransactionArea').show()
       } else {
-        $('#invalidNodeResponse').modal('show')
+        window.walletUi.showModal('#invalidNodeResponse')
       }
     }
   })
@@ -747,7 +746,7 @@ function checkResult(thisTxId, failureCount) {
         // Show warning is otsKeysRemaining is low
         if (Session.get('otsKeysRemaining') < 50) {
           // Shown low OTS Key warning modal
-          $('#lowOtsKeyWarning').modal('transition', 'disable').modal('show')
+          window.walletUi.showModal('#lowOtsKeyWarning')
         }
       })
       loadAddressTransactions(getXMSSDetails().address, 1)
@@ -930,25 +929,25 @@ function initialiseFormValidation() {
   }
 
   // Valid float
-  $.fn.form.settings.rules.validFloat = function (value) {
+  window.walletUi.addFormRule('validFloat', function (value) {
     // == is intended here
     if (parseFloat(value) == value && parseFloat(value).toString().length === value.length) { // eslint-disable-line
       return true
     }
     return false
-  }
+  })
 
   // Max of 9 decimals
-  $.fn.form.settings.rules.maxDecimals = function (value) {
+  window.walletUi.addFormRule('maxDecimals', function (value) {
     try {
       return countDecimals(value) <= 9
     } catch (e) {
       return false
     }
-  }
+  })
 
   // Address Validation
-  $.fn.form.settings.rules.qrlAddressValid = function (value) {
+  window.walletUi.addFormRule('qrlAddressValid', function (value) {
     try {
       const rawAddress = anyAddressToRawAddress(value)
       const thisAddress = helpers.rawAddressToHexAddress(rawAddress)
@@ -957,10 +956,10 @@ function initialiseFormValidation() {
     } catch (e) {
       return false
     }
-  }
+  })
 
   // Initialise the form validation
-  $('.ui.form').form({
+  window.walletUi.bindFormValidation('form', {
     fields: validationRules,
     inline: true,
     on: 'blur',
@@ -978,20 +977,20 @@ Template.appTransfer.onCreated(() => {
 
 Template.appTransfer.onRendered(() => {
   // Initialise dropdowns
-  $('.ui.dropdown').dropdown()
+  window.walletUi.initDropdowns('select')
 
   // Initialise Form Validation
   initialiseFormValidation()
 
   // Initialise tabs
-  $('#sendReceiveTabs .item').tab()
+  window.walletUi.initTabs('#sendReceiveTabs [data-tab]')
 
   // Load transactions
   refreshTransferPage(function () {
     // Show warning is otsKeysRemaining is low
     if (Session.get('otsKeysRemaining') < 50) {
       // Shown low OTS Key warning modal
-      $('#lowOtsKeyWarning').modal('transition', 'disable').modal('show')
+      window.walletUi.showModal('#lowOtsKeyWarning')
     }
   })
   loadAddressTransactions(getXMSSDetails().address, 1)
@@ -1002,7 +1001,7 @@ Template.appTransfer.onRendered(() => {
     getXMSSDetails().address ===
     'Q000400846365cd097082ce4404329d143959c8e4557d19b866ce8bf5ad7c9eb409d036651f62bd'
   ) {
-    $('#zeroBytesAddressWarning').modal('transition', 'disable').modal('show')
+    window.walletUi.showModal('#zeroBytesAddressWarning')
   }
 
   Tracker.autorun(function () {
@@ -1042,7 +1041,7 @@ Template.appTransfer.events({
         `token-${this.hash}-0`
       )
       .change()
-    $.tab('change tab', 'send')
+    window.walletUi.changeTab('send')
     $('#sendReceiveTabs > a').first().addClass('active')
     $('#sendReceiveTabs > a').last().removeClass('active')
   },
@@ -1088,7 +1087,7 @@ Template.appTransfer.events({
   },
   'click #confirmTransaction': () => {
     $('#confirmTransaction').attr('disabled', true)
-    $('#confirmTransaction').html('<div class="ui active inline loader"></div>')
+    $('#confirmTransaction').html('<span class="loading loading-spinner loading-sm"></span>')
     setTimeout(() => {
       confirmTransaction()
     }, 200)
@@ -1135,7 +1134,7 @@ Template.appTransfer.events({
       getRecipientIds().length > 2 &&
       getXMSSDetails().walletType === 'ledger'
     ) {
-      $('#maxRecipientsReached').modal('show')
+      window.walletUi.showModal('#maxRecipientsReached')
     } else {
       // Increment count of recipients
       const nextRecipientId = Math.max(...getRecipientIds()) + 1
@@ -1144,10 +1143,10 @@ Template.appTransfer.events({
         <div>
           <div class="field">
             <label>Additional Recipient</label>
-            <div class="ui action center aligned input"  id="amountFields" style="width: 100%; margin-bottom: 10px;">
+            <div class="grid gap-2 md:grid-cols-10" id="amountFields" style="width: 100%; margin-bottom: 10px;">
               <input type="text" id="to_${nextRecipientId}" name="to[]" placeholder="Address" style="width: 55%;">
               <input type="text" id="amounts_${nextRecipientId}" name="amounts[]" placeholder="Amount" style="width: 30%;">
-              <button class="ui red small button removeTransferRecipient" style="width: 10%"><i class="remove user icon"></i></button>
+              <button class="btn btn-error btn-sm removeTransferRecipient" style="width: 10%"><span aria-hidden="true">−</span></button>
             </div>
           </div>
         </div>
@@ -1210,10 +1209,10 @@ Template.appTransfer.events({
     }
   },
   'click #showRecoverySeed': () => {
-    $('#recoverySeedModal').modal('show')
+    window.walletUi.showModal('#recoverySeedModal')
   },
   'click #verifyLedgerNanoAddress': () => {
-    $('#verifyLedgerNanoAddressModal').modal('show')
+    window.walletUi.showModal('#verifyLedgerNanoAddressModal')
     verifyLedgerNanoAddress(function () {})
   },
 })

@@ -272,7 +272,7 @@ function generateTransaction() {
   const msTxhash = Session.get('multisigTransferFromTxhash')
   const formUnvote = Session.get('unvote')
 
-  console.log('checkbox:', $('.checkbox').checkbox('is checked'))
+  console.log('checkbox:', window.walletUi.isCheckboxChecked('.checkbox'))
 
   // check enough balance for fee
   const totalFee = new BigNumber(txnFee * SHOR_PER_QUANTA).toNumber()
@@ -282,7 +282,7 @@ function generateTransaction() {
     console.log('Insufficient balance in wallet for transaction fee')
     $('#checkWeightsModal .message .header').text('There\'s a problem')
     $('#checkWeightsModal p').text('Insufficient balance in your wallet for the transaction fee')
-    $('#checkWeightsModal').modal('show')
+    window.walletUi.showModal('#checkWeightsModal')
     return
   }
 
@@ -355,7 +355,7 @@ function generateTransaction() {
         // Hide generating component
         $('#generating').hide()
         // Show warning modal
-        $('#invalidNodeResponse').modal('show')
+        window.walletUi.showModal('#invalidNodeResponse')
       }
     }
   })
@@ -501,7 +501,7 @@ function initialiseFormValidation() {
   }
 
   // Address Validation
-  $.fn.form.settings.rules.qrlAddressValid = function (value) {
+  window.walletUi.addFormRule('qrlAddressValid', function (value) {
     try {
       const rawAddress = anyAddressToRawAddress(value)
       const thisAddress = helpers.rawAddressToHexAddress(rawAddress)
@@ -510,10 +510,10 @@ function initialiseFormValidation() {
     } catch (e) {
       return false
     }
-  }
+  })
 
   // Initialise the form validation
-  $('.ui.form').form({
+  window.walletUi.bindFormValidation('form', {
     fields: validationRules,
   })
 }
@@ -523,7 +523,7 @@ Template.multisigVote.events({
     Session.set('multisigTransferFromAddressSet', false)
     // call api to get addresses
     loadMultisigs(getXMSSDetails().address, 1)
-    $('#chooseVoteAddress').modal('show')
+    window.walletUi.showModal('#chooseVoteAddress')
   },
   'click #generateTransaction': (event) => {
     event.preventDefault()
@@ -532,7 +532,7 @@ Template.multisigVote.events({
   },
   'click #confirmTransaction': () => {
     $('#confirmTransaction').attr('disabled', true)
-    $('#confirmTransaction').html('<div class="ui active inline loader"></div>')
+    $('#confirmTransaction').html('<span class="loading loading-spinner loading-sm"></span>')
     setTimeout(() => { confirmTransaction() }, 200)
   },
   'click #quantaJsonClick': () => {
@@ -606,6 +606,6 @@ Template.msvTable.events({
     Session.set('multisigTransferFromProposer', c)
     Session.set('multisigTransferFromDetails', d)
     Session.set('multisigTransferFromAddressSet', true)
-    $('#chooseVoteAddress').modal('hide')
+    window.walletUi.hideModal('#chooseVoteAddress')
   },
 })

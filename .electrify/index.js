@@ -3,6 +3,12 @@ const electrify = require('@theqrl/electrify-qrl')(__dirname);
 
 let window;
 let loading;
+const MAX_MAIN_LOAD_RETRIES = 60;
+const MAX_BLANK_RECOVERY_ATTEMPTS = 3;
+const FORCE_SHOW_DELAY_MS = 12000;
+const CALLBACK_FALLBACK_DELAY_MS = 15000;
+
+app.disableHardwareAcceleration();
 
 app.on('ready', function() {
 
@@ -24,17 +30,19 @@ app.on('ready', function() {
             { label: "Select All", accelerator: "CmdOrCtrl+A", selector: "selectAll:" }
         ]}
     ];
-    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
   
   // Create the loading screen
   loading = new BrowserWindow({
     width: 850, height: 340,
-    nodeIntegration: false,
     icon: __dirname + '/assets/qrl.png',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: false,
+      sandbox: false,
+    },
   });
-    loading.webContents.on('will-navigate', ev => {
-      ev.preventDefault();
-    });
     loading.removeMenu();
     loading.setMenuBarVisibility(false);
     loading.setMinimizable(false);
@@ -43,43 +51,270 @@ app.on('ready', function() {
     loading.webContents.on('contextmenu', () => {
         menu.popup(window);
     });
-  loading.loadURL(`file://${__dirname}/loading.html`)
+  loading.webContents.on('did-fail-load', (event, code, description, validatedURL, isMainFrame) => {
+    if (isMainFrame) {
+      console.error('[loading] did-fail-load', { code, description, validatedURL });
+    }
+  });
+  loading.loadURL(`file://${__dirname}/loading.html`);
 
-  // Electrify Start
-  electrify.start(function(meteor_root_url) {
+  let bootstrapped = false;
+  function bootstrapMainWindow(meteor_root_url, trigger) {
+    if (bootstrapped) {
+      return;
+    }
+    bootstrapped = true;
+    console.log('[electron] bootstrapping main window via', trigger, meteor_root_url);
+
+    const allowedOrigin = new URL(meteor_root_url).origin;
+    let retryCount = 0;
+    let blankRecoveryCount = 0;
+
+    function inspectRendererDom() {
+      if (!window || window.isDestroyed()) {
+        return Promise.resolve(null);
+      }
+      return window.webContents.executeJavaScript(`(() => {
+        const body = document.body;
+        const html = document.documentElement;
+        const bodyStyle = body ? getComputedStyle(body) : null;
+        const htmlStyle = html ? getComputedStyle(html) : null;
+        const text = body ? body.innerText || '' : '';
+        const firstVisible = Array.from(document.querySelectorAll('body *')).find((el) => {
+          const style = getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          if (style.display === 'none' || style.visibility === 'hidden') return false;
+          if (Number(style.opacity || '1') <= 0.01) return false;
+          return rect.width > 2 && rect.height > 2;
+        });
+
+        return {
+          title: document.title,
+          readyState: document.readyState,
+          bodyChildren: body ? body.children.length : -1,
+          bodyTextLength: text.trim().length,
+          bodyTextSample: text.trim().slice(0, 160),
+          bodyDisplay: bodyStyle ? bodyStyle.display : null,
+          bodyVisibility: bodyStyle ? bodyStyle.visibility : null,
+          bodyOpacity: bodyStyle ? bodyStyle.opacity : null,
+          bodyBackground: bodyStyle ? bodyStyle.backgroundColor : null,
+          bodyColor: bodyStyle ? bodyStyle.color : null,
+          htmlDisplay: htmlStyle ? htmlStyle.display : null,
+          htmlVisibility: htmlStyle ? htmlStyle.visibility : null,
+          htmlOpacity: htmlStyle ? htmlStyle.opacity : null,
+          firstVisibleTag: firstVisible ? firstVisible.tagName : null,
+          firstVisibleClass: firstVisible ? firstVisible.className : null,
+        };
+      })()`, true);
+    }
+
+    function recoverBlankRenderer(reason) {
+      if (!window || window.isDestroyed()) {
+        return;
+      }
+      if (blankRecoveryCount >= MAX_BLANK_RECOVERY_ATTEMPTS) {
+        console.error('[electron] blank renderer recovery exhausted', { reason, blankRecoveryCount });
+        if (!window.webContents.isDevToolsOpened()) {
+          window.webContents.openDevTools({ mode: 'detach' });
+        }
+        return;
+      }
+      blankRecoveryCount += 1;
+      console.warn('[electron] attempting blank renderer recovery', { reason, blankRecoveryCount });
+      window.webContents.insertCSS('html, body { display: block !important; visibility: visible !important; opacity: 1 !important; }')
+        .catch(() => {});
+      setTimeout(() => {
+        if (!window || window.isDestroyed()) {
+          return;
+        }
+        window.reload();
+      }, 300);
+    }
+
+    function retryLoad(reason) {
+      if (retryCount >= MAX_MAIN_LOAD_RETRIES) {
+        console.error('[electron] giving up reload retries for', meteor_root_url, 'last reason:', reason);
+        return;
+      }
+      retryCount += 1;
+      setTimeout(() => {
+        if (!window || window.isDestroyed()) {
+          return;
+        }
+        console.warn('[electron] retrying load', retryCount, 'for', meteor_root_url, 'reason:', reason);
+        window.loadURL(meteor_root_url);
+      }, 500);
+    }
+
     // Show the main QRL Wallet Window
     window = new BrowserWindow({
       width: 1300, height: 720,
-      nodeIntegration: false,
-      icon: __dirname + '/assets/qrl.png'
+      show: false,
+      icon: __dirname + '/assets/qrl.png',
+      backgroundColor: '#ffffff',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: false,
+        sandbox: false,
+      },
     });
 
-    // Destroy the loading page
-    loading.destroy();
+    const forcedShowTimer = setTimeout(() => {
+      if (!window || window.isDestroyed() || window.isVisible()) {
+        return;
+      }
+      console.warn('[electron] forcing main window show after timeout');
+      window.show();
+      window.focus();
+    }, FORCE_SHOW_DELAY_MS);
+
+    // Setup content menu and diagnostics before loading URL.
+    window.webContents.on('contextmenu', () => {
+      menu.popup(window);
+    });
+
+    window.webContents.on('console-message', (event, level, message, line, sourceId) => {
+      const payload = { level, message, line, sourceId };
+      if (level >= 2) {
+        console.error('[renderer]', payload);
+      } else {
+        console.log('[renderer]', payload);
+      }
+    });
+
+    window.webContents.on('did-start-navigation', (event, url, isInPlace, isMainFrame) => {
+      if (isMainFrame) {
+        console.log('[electron] did-start-navigation', { url, isInPlace });
+      }
+    });
+
+    window.webContents.on('dom-ready', () => {
+      inspectRendererDom()
+        .then((snapshot) => {
+          if (snapshot) {
+            console.log('[renderer] dom-ready-snapshot', snapshot);
+          }
+        })
+        .catch((error) => {
+          console.error('[renderer] dom-ready-snapshot-failed', error);
+        });
+    });
+
+    // Destroy the loading page if still open
+    if (loading && !loading.isDestroyed()) {
+      loading.destroy();
+    }
 
     // Load meteor site in new BrowserWindow
     window.loadURL(meteor_root_url);
+    window.once('ready-to-show', () => {
+      clearTimeout(forcedShowTimer);
+      window.show();
+      window.focus();
+    });
 
     // Set About menu for MacOS
     if (process.platform === 'darwin') {
       app.setAboutPanelOptions({
         applicationName: "QRL Wallet",
-        applicationVersion: "1.8.1",
-        version: "Electron 16.0.1",
+        applicationVersion: "1.9.0",
+        version: "Electron 40.0.0",
         copyright: "Die QRL Stiftung, Zug Switzerland",
         credits: "The QRL Developers"
       });
     }
 
-    // Setup content menu, and enable copy/paste actions
-    window.webContents.on('contextmenu', () => {
-        menu.popup(window);
+    window.webContents.on('did-finish-load', () => {
+      retryCount = 0;
+      console.log('[electron] did-finish-load', window.webContents.getURL());
+      inspectRendererDom().then((snapshot) => {
+        if (!snapshot) {
+          return;
+        }
+        console.log('[renderer] dom-snapshot', snapshot);
+
+        const bodyHidden = snapshot.bodyDisplay === 'none'
+          || snapshot.bodyVisibility === 'hidden'
+          || Number(snapshot.bodyOpacity || '1') <= 0.01;
+        const htmlHidden = snapshot.htmlDisplay === 'none'
+          || snapshot.htmlVisibility === 'hidden'
+          || Number(snapshot.htmlOpacity || '1') <= 0.01;
+        const looksBlank = !snapshot.firstVisibleTag && snapshot.bodyTextLength > 0;
+
+        if (bodyHidden || htmlHidden || looksBlank) {
+          recoverBlankRenderer('hidden-or-no-visible-content');
+        }
+      }).catch((error) => {
+        console.error('[renderer] dom-snapshot-failed', error);
+      });
+    });
+
+    window.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) {
+        return;
+      }
+      console.error('[electron] did-fail-load', { errorCode, errorDescription, validatedURL });
+      if (validatedURL && validatedURL.startsWith(allowedOrigin)) {
+        retryLoad(`${errorCode}:${errorDescription}`);
+      }
+    });
+
+    window.webContents.on('render-process-gone', (event, details) => {
+      console.error('[electron] render-process-gone', details);
+    });
+
+    window.on('unresponsive', () => {
+      console.error('[electron] main window became unresponsive');
     });
 
     // Prevent drag and drop links from opening in electron window
-    window.webContents.on('will-navigate', ev => {
-      ev.preventDefault()
+    window.webContents.on('will-navigate', (ev, url) => {
+      try {
+        if (new URL(url).origin !== allowedOrigin) {
+          ev.preventDefault();
+        }
+      } catch (error) {
+        ev.preventDefault();
+      }
     });
+
+    window.webContents.setWindowOpenHandler(({ url }) => {
+      try {
+        if (new URL(url).origin === allowedOrigin) {
+          return { action: 'allow' };
+        }
+      } catch (error) {
+        // Treat malformed URLs as unsafe.
+      }
+      return { action: 'deny' };
+    });
+
+    window.on('closed', () => {
+      clearTimeout(forcedShowTimer);
+    });
+  }
+
+  const callbackFallback = setTimeout(() => {
+    if (bootstrapped) {
+      return;
+    }
+    try {
+      const nodejs = electrify.plugins.get('nodejs');
+      const fallbackUrl = nodejs && nodejs.config && nodejs.config.ROOT_URL;
+      if (fallbackUrl) {
+        bootstrapMainWindow(fallbackUrl, 'fallback-timeout');
+      } else {
+        console.error('[electron] fallback-timeout fired but no nodejs ROOT_URL available');
+      }
+    } catch (error) {
+      console.error('[electron] fallback-timeout failed', error);
+    }
+  }, CALLBACK_FALLBACK_DELAY_MS);
+
+  // Electrify Start
+  electrify.start(function(meteor_root_url) {
+    clearTimeout(callbackFallback);
+    bootstrapMainWindow(meteor_root_url, 'electrify-callback');
   });
 });
 
