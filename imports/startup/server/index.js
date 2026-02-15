@@ -104,6 +104,28 @@ const normalizeEndpoint = (endpoint) => {
   return endpoint.trim()
 }
 
+const extractBlockHeightFromNodeState = (nodeState) => {
+  if (!nodeState || typeof nodeState !== 'object') {
+    return 0
+  }
+
+  const possibleHeights = [
+    nodeState.info && nodeState.info.block_height,
+    nodeState.node_info && nodeState.node_info.block_height,
+    nodeState.block_height,
+    nodeState.node_state && nodeState.node_state.block_height,
+  ]
+
+  for (const value of possibleHeights) {
+    const parsed = parseInt(value, 10)
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed
+    }
+  }
+
+  return 0
+}
+
 function toBuffer(ab) {
   const buffer = Buffer.from(ab)
   return buffer
@@ -352,18 +374,30 @@ const connectToNode = (endpoint, callback) => {
 
           console.log('Attempting re-connection to ', normalizedEndpoint)
 
-          loadGrpcClient(normalizedEndpoint, (loadErr, loadResponse) => {
+          loadGrpcClient(normalizedEndpoint, (loadErr) => {
             if (loadErr) {
               console.log(`Failed to re-connect to node ${normalizedEndpoint}`)
               const myError = errorCallback(
-                err,
+                loadErr,
                 'Cannot connect to remote node',
                 '**ERROR/connection** '
               )
               callback(myError, null)
             } else {
-              console.log(`Connected to ${normalizedEndpoint}`)
-              callback(null, loadResponse)
+              qrlClient[normalizedEndpoint].getNodeState({}, (errState, reconnectResponse) => {
+                if (errState) {
+                  const myError = errorCallback(
+                    errState,
+                    'Cannot access API/getNodeState',
+                    '**ERROR/getNodeState**'
+                  )
+                  callback(myError, null)
+                  return
+                }
+
+                console.log(`Connected to ${normalizedEndpoint}`)
+                callback(null, reconnectResponse)
+              })
             }
           })
         } else {
@@ -461,10 +495,7 @@ const connectNodes = () => {
           } else {
             console.log(`Connected to ${endpoint}`)
             DEFAULT_NETWORKS[networkIndex].nodes[nodeIndex].state = true
-            DEFAULT_NETWORKS[networkIndex].nodes[nodeIndex].height = parseInt(
-              res.info.block_height,
-              10
-            )
+            DEFAULT_NETWORKS[networkIndex].nodes[nodeIndex].height = extractBlockHeightFromNodeState(res)
             // At least one node in the network is online, set network as healthy
             DEFAULT_NETWORKS[networkIndex].healthy = true
           }

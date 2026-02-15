@@ -520,7 +520,7 @@
   
             <div class="grid gap-4 grid-cols-1">
               <div class="">
-                <span>Transaction Hash <a id="confirmedTransferTxnHash" href="{{nodeExplorerUrl}}/tx/{{transactionHash}}" target="_blank" class="wordBreak">{{transactionHash}}</a></span>
+                <span>Transaction Hash <a id="confirmedTransferTxnHash" href="{{nodeExplorerUrl}}/tx/{{transactionHash}}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer" class="wordBreak">{{transactionHash}}</a></span>
                 <br />
                 <span>Fee <a class="">{{transactionConfirmationFee}}</a> Quanta</span>
                 <br />
@@ -606,7 +606,7 @@
                 {{this.txhash}}
               </td>
               <!-- <td data-address="{{this.address}}">
-                <a href="{{nodeExplorerUrl}}/tx/{{this.txhash}}"><button class="btn btn-sm">View in QRL Explorer &raquo;</button></a>
+                <a href="{{nodeExplorerUrl}}/tx/{{this.txhash}}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer"><button class="btn btn-sm">View in QRL Explorer &raquo;</button></a>
               </td> -->
               <td color="#000">
                 {{ this.address }}
