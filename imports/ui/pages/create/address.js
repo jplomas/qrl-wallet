@@ -84,19 +84,6 @@ Template.appCreateAddress.onRendered(() => {
 
     saveItModal.showModal()
   }
-
-  // QR code auto-update based on address format
-  Tracker.autorun(function () {
-    const container = document.querySelector('.qr-code-container')
-    if (container && typeof $.fn.qrcode === 'function') {
-      $(container).empty()
-      if (LocalStore.get('addressFormat') === 'bech32') {
-        $(container).qrcode({ width: 88, height: 88, text: getXMSSDetails().addressB32 })
-      } else {
-        $(container).qrcode({ width: 88, height: 88, text: getXMSSDetails().address })
-      }
-    }
-  })
 })
 
 Template.appCreateAddress.onDestroyed(() => {
@@ -144,6 +131,9 @@ Template.appCreateAddress.helpers({
     return getXMSSDetails()
   },
   QRText() {
+    if (LocalStore.get('addressFormat') === 'bech32') {
+      return getXMSSDetails().addressB32
+    }
     return getXMSSDetails().address
   },
 })

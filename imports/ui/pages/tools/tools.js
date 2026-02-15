@@ -131,7 +131,7 @@ function createToolsVueApp(tools) {
         h('div', { class: 'card bg-base-200 border border-base-300' }, [
           h('div', { class: 'card-body p-4 sm:flex-row gap-3 items-center' }, [
             h('input', {
-              class: 'input input-bordered w-full bg-base-100',
+              class: 'input w-full bg-base-100',
               placeholder: 'Search tools',
               value: this.query,
               onInput: (event) => {
@@ -139,7 +139,7 @@ function createToolsVueApp(tools) {
               },
             }),
             h('select', {
-              class: 'select select-bordered w-full sm:w-56 bg-base-100',
+              class: 'select w-full sm:w-56 bg-base-100',
               value: this.selectedCategory,
               onChange: (event) => {
                 this.selectedCategory = event.target.value

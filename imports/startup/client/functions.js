@@ -422,14 +422,15 @@ supportedBrowser = () => {
 
 // Wrapper for Meteor.call
 wrapMeteorCall = (method, request, callback) => {
-  // Modify network to gRPC endpoint for custom/localhost settings
-  if (request.network === 'localhost') {
-    // Override network to localhost
-    request.network = 'localhost:19009'
-  }
-  if (request.network === 'custom') {
-    // Override network to localhost
-    request.network = LocalStore.get('customNodeGrpc')
+  if (request && typeof request === 'object' && !Array.isArray(request)) {
+    // Modify network to gRPC endpoint for custom/localhost settings
+    if (request.network === 'localhost') {
+      request.network = 'localhost:19009'
+    }
+    if (request.network === 'custom') {
+      const customNodeGrpc = LocalStore.get('customNodeGrpc')
+      request.network = (typeof customNodeGrpc === 'string') ? customNodeGrpc.trim() : ''
+    }
   }
 
   Meteor.call(method, request, (err, res) => {

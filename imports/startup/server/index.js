@@ -97,6 +97,13 @@ WebApp.connectHandlers.use((req, res, next) => {
 // An array of grpc connections and associated proto file paths
 const qrlClient = []
 
+const normalizeEndpoint = (endpoint) => {
+  if (typeof endpoint !== 'string') {
+    return ''
+  }
+  return endpoint.trim()
+}
+
 function toBuffer(ab) {
   const buffer = Buffer.from(ab)
   return buffer
@@ -115,6 +122,17 @@ const errorCallback = (error, message, alert) => {
 
 // Load the qrl.proto gRPC client into qrlClient from a remote node.
 const loadGrpcClient = (endpoint, callback) => {
+  const normalizedEndpoint = normalizeEndpoint(endpoint)
+  if (!normalizedEndpoint) {
+    const myError = errorCallback(
+      'Invalid gRPC endpoint',
+      'Cannot connect to remote node: empty endpoint',
+      '**ERROR/connect**'
+    )
+    callback(myError, null)
+    return
+  }
+
   const options = {
     keepCase: true,
     longs: String,
@@ -129,13 +147,24 @@ const loadGrpcClient = (endpoint, callback) => {
       .load(`${PROTO_PATH}qrlbase.proto`)
       .then((packageDefinitionBase) => {
         const baseGrpcObject = grpc.loadPackageDefinition(packageDefinitionBase)
-        const client = new baseGrpcObject.qrl.Base(
-          endpoint,
-          grpc.credentials.createInsecure()
-        )
+        let client = null
+        try {
+          client = new baseGrpcObject.qrl.Base(
+            normalizedEndpoint,
+            grpc.credentials.createInsecure()
+          )
+        } catch (grpcError) {
+          const myError = errorCallback(
+            grpcError,
+            `Cannot access node: ${normalizedEndpoint}`,
+            '**ERROR/connect**'
+          )
+          callback(myError, null)
+          return
+        }
         client.getNodeInfo({}, (err, res) => {
           if (err) {
-            console.log(`Error fetching qrl.proto from ${endpoint}`)
+            console.log(`Error fetching qrl.proto from ${normalizedEndpoint}`)
             callback(err, null)
           } else {
             // Write a new temp file for this grpc connection
@@ -236,13 +265,13 @@ const loadGrpcClient = (endpoint, callback) => {
                       })
                       if (verifiedObject === true || allowUnchecksummedNodes === true) {
                         // Create the gRPC Connection
-                        console.log('Making GRPC PublicAPI connection to ' + endpoint)
-                        qrlClient[endpoint] = new grpcObject.qrl.PublicAPI(
-                          endpoint,
+                        console.log('Making GRPC PublicAPI connection to ' + normalizedEndpoint)
+                        qrlClient[normalizedEndpoint] = new grpcObject.qrl.PublicAPI(
+                          normalizedEndpoint,
                           grpc.credentials.createInsecure()
                         )
 
-                        console.log(`qrlClient loaded for ${endpoint}`)
+                        console.log(`qrlClient loaded for ${normalizedEndpoint}`)
 
                         callback(null, true)
                       } else {
@@ -293,28 +322,39 @@ const loadGrpcClient = (endpoint, callback) => {
 // If there is no active server side connection for the requested node,
 // this function will call loadGrpcClient to establish one.
 const connectToNode = (endpoint, callback) => {
+  const normalizedEndpoint = normalizeEndpoint(endpoint)
+  if (!normalizedEndpoint) {
+    const myError = errorCallback(
+      'Invalid gRPC endpoint',
+      'Cannot connect to remote node: empty endpoint',
+      '**ERROR/connection** '
+    )
+    callback(myError, null)
+    return
+  }
+
   // First check if there is an existing object to store the gRPC connection
-  if (qrlClient.hasOwnProperty(endpoint) === true) { // eslint-disable-line
+  if (qrlClient.hasOwnProperty(normalizedEndpoint) === true) { // eslint-disable-line
     // eslint-disable-line
     console.log(
       'Existing connection found for ',
-      endpoint,
+      normalizedEndpoint,
       ' - attempting getNodeState'
     )
     // There is already a gRPC object for this server stored.
     // Attempt to connect to it.
     try {
-      qrlClient[endpoint].getNodeState({}, (err, response) => {
+      qrlClient[normalizedEndpoint].getNodeState({}, (err, response) => {
         if (err) {
-          console.log('Error fetching node state for ', endpoint)
+          console.log('Error fetching node state for ', normalizedEndpoint)
           // If it errors, we're going to remove the object and attempt to connect again.
-          delete qrlClient[endpoint]
+          delete qrlClient[normalizedEndpoint]
 
-          console.log('Attempting re-connection to ', endpoint)
+          console.log('Attempting re-connection to ', normalizedEndpoint)
 
-          loadGrpcClient(endpoint, (loadErr, loadResponse) => {
+          loadGrpcClient(normalizedEndpoint, (loadErr, loadResponse) => {
             if (loadErr) {
-              console.log(`Failed to re-connect to node ${endpoint}`)
+              console.log(`Failed to re-connect to node ${normalizedEndpoint}`)
               const myError = errorCallback(
                 err,
                 'Cannot connect to remote node',
@@ -322,12 +362,12 @@ const connectToNode = (endpoint, callback) => {
               )
               callback(myError, null)
             } else {
-              console.log(`Connected to ${endpoint}`)
+              console.log(`Connected to ${normalizedEndpoint}`)
               callback(null, loadResponse)
             }
           })
         } else {
-          console.log(`Node state for ${endpoint} ok`)
+          console.log(`Node state for ${normalizedEndpoint} ok`)
           callback(null, response)
         }
       })
@@ -341,11 +381,11 @@ const connectToNode = (endpoint, callback) => {
       callback(myError, null)
     }
   } else {
-    console.log(`Establishing new connection to ${endpoint}`)
+    console.log(`Establishing new connection to ${normalizedEndpoint}`)
     // We've not connected to this node before, let's establish a connection to it.
-    loadGrpcClient(endpoint, (err) => {
+    loadGrpcClient(normalizedEndpoint, (err) => {
       if (err) {
-        console.log(`Failed to connect to node ${endpoint}`)
+        console.log(`Failed to connect to node ${normalizedEndpoint}`)
         const myError = errorCallback(
           err,
           'Cannot connect to remote node',
@@ -353,10 +393,10 @@ const connectToNode = (endpoint, callback) => {
         )
         callback(myError, null)
       } else {
-        console.log(`Connected to ${endpoint}`)
-        qrlClient[endpoint].getNodeState({}, (errState, response) => {
+        console.log(`Connected to ${normalizedEndpoint}`)
+        qrlClient[normalizedEndpoint].getNodeState({}, (errState, response) => {
           if (errState) {
-            console.log(`Failed to query node state ${endpoint}`)
+            console.log(`Failed to query node state ${normalizedEndpoint}`)
             const myError = errorCallback(
               err,
               'Cannot connect to remote node',
@@ -486,7 +526,7 @@ const qrlApi = (api, request, callback) => {
       delete request.network
       console.log('Making', api, 'request to', bestNode.grpc)
       qrlClient[bestNode.grpc][api](request, (error, response) => {
-        if (api === 'pushTransaction') {
+        if (!error && api === 'pushTransaction' && response) {
           response.relayed = bestNode.grpc
         }
         if (error) {
@@ -500,22 +540,57 @@ const qrlApi = (api, request, callback) => {
   } else {
     // Handle custom and localhost connections
     console.log('Handling custom API call')
-    const apiEndpoint = request.network
+    const apiEndpoint = normalizeEndpoint(request.network)
     // Delete network from request object
     delete request.network
+    if (!apiEndpoint) {
+      const myError = errorCallback(
+        'Invalid gRPC endpoint',
+        'Cannot connect to API: empty endpoint',
+        '**ERROR/api/custom**'
+      )
+      callback(myError, null)
+      return
+    }
+
     console.log('Making', api, 'request to', apiEndpoint)
 
-    qrlClient[apiEndpoint][api](request, (error, response) => {
-      if (api === 'pushTransaction') {
-        response.relayed = apiEndpoint
-      }
-      if (error) {
-        const myError = new Meteor.Error(500, error.details)
+    const executeApiCall = () => {
+      if (!qrlClient[apiEndpoint] || typeof qrlClient[apiEndpoint][api] !== 'function') {
+        const myError = errorCallback(
+          `No API connection available for endpoint: ${apiEndpoint}`,
+          `Cannot call API/${api} for endpoint: ${apiEndpoint}`,
+          '**ERROR/api/custom**'
+        )
         callback(myError, null)
-      } else {
-        callback(null, response)
+        return
       }
-    })
+
+      qrlClient[apiEndpoint][api](request, (error, response) => {
+        if (!error && api === 'pushTransaction' && response) {
+          response.relayed = apiEndpoint
+        }
+        if (error) {
+          const myError = new Meteor.Error(500, error.details)
+          callback(myError, null)
+        } else {
+          callback(null, response)
+        }
+      })
+    }
+
+    if (!qrlClient[apiEndpoint]) {
+      connectToNode(apiEndpoint, (connectErr) => {
+        if (connectErr) {
+          callback(connectErr, null)
+        } else {
+          executeApiCall()
+        }
+      })
+      return
+    }
+
+    executeApiCall()
   }
 }
 
@@ -3047,13 +3122,17 @@ Meteor.methods({
     return response
   },
   async QRLvalue() {
-    const apiUrl = 'https://bittrex.com/api/v1.1/public/getmarketsummary?market=btc-qrl'
-    const apiUrlUSD = 'https://bittrex.com/api/v1.1/public/getmarketsummary?market=usdt-btc'
-    // asynchronous call to API
-    const response = await apiCallAsync(apiUrl)
-    const responseUSD = await apiCallAsync(apiUrlUSD)
-    const usd = response.result[0].Last * responseUSD.result[0].Last
-    return usd
+    const apiUrl = 'https://market-data.automated.theqrl.org/'
+    try {
+      const response = await apiCallAsync(apiUrl)
+      const price = Number(response && response.price)
+      if (!Number.isFinite(price) || price <= 0) {
+        return null
+      }
+      return price
+    } catch (error) {
+      return null
+    }
   },
   async ledgerGetState(request) {
     check(request, Array)

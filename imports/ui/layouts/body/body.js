@@ -7,7 +7,7 @@
 
 import { BlazeLayout } from 'meteor/pwix:blaze-layout'
 import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
-import '../../stylesheets/overrides.css'
+import { Tracker } from 'meteor/tracker'
 import { isChecked, isVisible } from '../../lib/dom'
 import { isElectrified } from '../../../startup/client/functions'
 
@@ -33,6 +33,33 @@ const checkNetworkHealth = (network, callback) => {
   })
 }
 
+const normalizeEndpoint = (endpoint) => {
+  if (typeof endpoint !== 'string') {
+    return ''
+  }
+  return endpoint.trim()
+}
+
+const setNetworkSelect = (value) => {
+  const networkSelect = document.getElementById('network')
+  if (!networkSelect) return
+
+  const fallback = DEFAULT_NETWORKS[0].id
+  const nextValue = value || fallback
+  const hasOption = Array.from(networkSelect.options).some((option) => option.value === nextValue)
+  networkSelect.value = hasOption ? nextValue : fallback
+}
+
+const handleNetworkChange = (value) => {
+  console.log('Network changed to:', value)
+  updateNetwork(value)
+  if (value !== 'add' && Session.get('cancellingNetwork') !== true) {
+    // reload to update balances/Txs if on different network
+    window.Reload._reload()
+  }
+  Session.set('cancellingNetwork', false)
+}
+
 // TODO: refactor this -- duplicate code used in ../mobile/mobile.js
 // Set session state based on selected network node.
 const updateNetwork = (selectedNetwork) => {
@@ -40,13 +67,9 @@ const updateNetwork = (selectedNetwork) => {
 
   // If no network is selected, default to mainnet
   if (selectedNetwork === '') {
-    const networkSelect = document.getElementById('network')
-    if (networkSelect) networkSelect.value = DEFAULT_NETWORKS[0].id
+    setNetworkSelect(DEFAULT_NETWORKS[0].id)
     userNetwork = DEFAULT_NETWORKS[0].id
   }
-
-  // Set node status to connecting
-  Session.set('nodeStatus', 'connecting')
 
   Session.set('cancellingNetwork', false)
 
@@ -56,22 +79,36 @@ const updateNetwork = (selectedNetwork) => {
       // Show DaisyUI modal for adding custom node
       const modal = document.getElementById('addNodeModal')
       if (modal) modal.showModal()
+      // Keep selector reflecting currently active node.
+      setNetworkSelect(Session.get('nodeId') || DEFAULT_NETWORKS[0].id)
       break
     }
     case 'custom': {
+      const customNodeGrpc = normalizeEndpoint(LocalStore.get('customNodeGrpc'))
+      if (!customNodeGrpc) {
+        Session.set('nodeStatus', 'failed')
+        Session.set('cancellingNetwork', true)
+        setNetworkSelect(Session.get('nodeId') || DEFAULT_NETWORKS[0].id)
+        const modal = document.getElementById('addNodeModal')
+        if (modal) modal.showModal()
+        return
+      }
+
       const nodeData = {
         id: 'custom',
         name: LocalStore.get('customNodeName'),
         disabled: '',
         explorerUrl: LocalStore.get('customNodeExplorerUrl'),
         type: 'both',
-        grpc: LocalStore.get('customNodeGrpc'),
+        grpc: customNodeGrpc,
       }
 
       Session.set('nodeId', 'custom')
       Session.set('nodeName', LocalStore.get('customNodeName'))
-      Session.set('nodeGrpc', LocalStore.get('customNodeGrpc'))
+      Session.set('nodeGrpc', customNodeGrpc)
       Session.set('nodeExplorerUrl', LocalStore.get('customNodeExplorerUrl'))
+      Session.set('nodeStatus', 'connecting')
+      setNetworkSelect('custom')
 
       console.log('Connecting to custom remote gRPC node: ', nodeData.grpc)
       connectToNode(nodeData.grpc, (err) => {
@@ -91,6 +128,8 @@ const updateNetwork = (selectedNetwork) => {
       Session.set('nodeName', nodeData.name)
       Session.set('nodeExplorerUrl', nodeData.explorerUrl)
       Session.set('nodeGrpc', nodeData.grpc)
+      Session.set('nodeStatus', 'connecting')
+      setNetworkSelect(nodeData.id)
 
       console.log('Connecting to network: ', nodeData.name)
       checkNetworkHealth(nodeData.id, (err, res) => {
@@ -107,61 +146,84 @@ const updateNetwork = (selectedNetwork) => {
   }
 }
 
-Template.appBody.onRendered(() => {
+Template.appBody.onRendered(function onRendered() {
   Session.set('modalEventTriggered', false)
 
-  // Initialize with default network
-  const networkSelect = document.getElementById('network')
-  if (networkSelect) {
-    networkSelect.value = Session.get('nodeId') || DEFAULT_NETWORKS[0].id
-  }
+  setNetworkSelect(Session.get('nodeId') || DEFAULT_NETWORKS[0].id)
 
   updateNetwork(selectedNetwork())
+
+  this.autorun(() => {
+    const nodeId = Session.get('nodeId') || DEFAULT_NETWORKS[0].id
+    Tracker.afterFlush(() => {
+      setNetworkSelect(nodeId)
+    })
+  })
+
+  this._networkChangeHandler = (event) => {
+    handleNetworkChange(event.target.value)
+  }
+  const networkSelect = document.getElementById('network')
+  if (networkSelect) {
+    networkSelect.addEventListener('change', this._networkChangeHandler)
+  }
 
   // Debug log for web assembly support
   console.log('Web Assembly Supported: ', supportedBrowser())
 })
 
+Template.appBody.onDestroyed(function onDestroyed() {
+  const networkSelect = document.getElementById('network')
+  if (networkSelect && this._networkChangeHandler) {
+    networkSelect.removeEventListener('change', this._networkChangeHandler)
+  }
+})
+
 Template.appBody.events({
-  'change #network': (event) => {
-    const value = event.target.value
-    console.log('Network changed to:', value)
-    updateNetwork(value)
-    if (value !== 'add' && Session.get('cancellingNetwork') !== true) {
-      // reload to update balances/Txs if on different network
-      window.Reload._reload()
-    }
-    Session.set('cancellingNetwork', false)
-  },
   'click #saveCustomNode': () => {
     // Save custom node settings
-    Session.set('nodeId', 'custom')
-    Session.set('nodeName', document.getElementById('customNodeName').value)
-    Session.set('nodeGrpc', document.getElementById('customNodeGrpc').value)
-    Session.set('nodeExplorerUrl', document.getElementById('customNodeExplorer').value)
+    const customNodeName = document.getElementById('customNodeName').value
+    const customNodeGrpc = normalizeEndpoint(document.getElementById('customNodeGrpc').value)
+    const customNodeExplorer = document.getElementById('customNodeExplorer').value
 
-    LocalStore.set('customNodeName', document.getElementById('customNodeName').value)
-    LocalStore.set('customNodeGrpc', document.getElementById('customNodeGrpc').value)
-    LocalStore.set('customNodeExplorerUrl', document.getElementById('customNodeExplorer').value)
+    if (!customNodeGrpc) {
+      Session.set('nodeStatus', 'failed')
+      document.getElementById('customNodeGrpc').focus()
+      return
+    }
+
+    Session.set('nodeId', 'custom')
+    Session.set('nodeName', customNodeName)
+    Session.set('nodeGrpc', customNodeGrpc)
+    Session.set('nodeExplorerUrl', customNodeExplorer)
+
+    LocalStore.set('customNodeName', customNodeName)
+    LocalStore.set('customNodeGrpc', customNodeGrpc)
+    LocalStore.set('customNodeExplorerUrl', customNodeExplorer)
     LocalStore.set('customNodeCreated', true)
 
     // Close modal and select custom node
     const modal = document.getElementById('addNodeModal')
     if (modal) modal.close()
-    
-    const networkSelect = document.getElementById('network')
-    if (networkSelect) networkSelect.value = 'custom'
-    
+
+    setNetworkSelect('custom')
+
     updateNetwork('custom')
   },
   'click #cancelCustomNode': () => {
     const modal = document.getElementById('addNodeModal')
     if (modal) modal.close()
-    
-    // Revert to mainnet
+
+    // Revert selector to active node
     Session.set('cancellingNetwork', true)
+    setNetworkSelect(Session.get('nodeId') || DEFAULT_NETWORKS[0].id)
+  },
+  'close #addNodeModal': () => {
     const networkSelect = document.getElementById('network')
-    if (networkSelect) networkSelect.value = 'mainnet'
+    if (networkSelect && networkSelect.value === 'add') {
+      Session.set('cancellingNetwork', true)
+      setNetworkSelect(Session.get('nodeId') || DEFAULT_NETWORKS[0].id)
+    }
   },
   'change #addressFormatCheckbox': () => {
     const checked = isChecked('addressFormatCheckbox')

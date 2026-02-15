@@ -16,15 +16,18 @@
         </div>
       </div>
       <div class="mt-3">
-        <select id="network" class="select select-bordered select-sm w-full bg-base-100">
-          {{#each defaultNetworks}}
-            <option value="{{this.id}}">{{this.name}}</option>
-          {{/each}}
-          {{#if customNodeCreated}}
-            <option value="custom">{{customNodeName}}</option>
-          {{/if}}
-          <option value="add">+ Add Custom Node</option>
-        </select>
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend text-xs uppercase tracking-wide text-base-content/70">Network</legend>
+          <select id="network" class="select select-sm w-full bg-base-100">
+            {{#each defaultNetworks}}
+              <option value="{{this.id}}">{{this.name}}</option>
+            {{/each}}
+            {{#if customNodeCreated}}
+              <option value="custom">{{customNodeName}}</option>
+            {{/if}}
+            <option value="add">+ Add Custom Node</option>
+          </select>
+        </fieldset>
       </div>
     </header>
 

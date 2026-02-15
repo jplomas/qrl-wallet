@@ -35,6 +35,13 @@ const checkNetworkHealth = (network, callback) => {
   })
 }
 
+const normalizeEndpoint = (endpoint) => {
+  if (typeof endpoint !== 'string') {
+    return ''
+  }
+  return endpoint.trim()
+}
+
 function setNetworkSelect(value) {
   setValue('network', value)
 }
@@ -61,18 +68,27 @@ const updateNetwork = (selectedValue) => {
       break
     }
     case 'custom': {
+      const customNodeGrpc = normalizeEndpoint(LocalStore.get('customNodeGrpc'))
+      if (!customNodeGrpc) {
+        Session.set('nodeStatus', 'failed')
+        Session.set('cancellingNetwork', true)
+        setNetworkSelect(Session.get('nodeId') || DEFAULT_NETWORKS[0].id)
+        openDialog('addNodeModal')
+        return
+      }
+
       const nodeData = {
         id: 'custom',
         name: LocalStore.get('customNodeName'),
         disabled: '',
         explorerUrl: LocalStore.get('customNodeExplorerUrl'),
         type: 'both',
-        grpc: LocalStore.get('customNodeGrpc'),
+        grpc: customNodeGrpc,
       }
 
       Session.set('nodeId', 'custom')
       Session.set('nodeName', LocalStore.get('customNodeName'))
-      Session.set('nodeGrpc', LocalStore.get('customNodeGrpc'))
+      Session.set('nodeGrpc', customNodeGrpc)
       Session.set('nodeExplorerUrl', LocalStore.get('customNodeExplorerUrl'))
 
       console.log('Connecting to custom remote gRPC node: ', nodeData.grpc)
@@ -166,8 +182,14 @@ Template.mobile.events({
     const customNodeExplorerField = resolve('customNodeExplorer')
 
     const customNodeName = customNodeNameField ? customNodeNameField.value : ''
-    const customNodeGrpc = customNodeGrpcField ? customNodeGrpcField.value : ''
+    const customNodeGrpc = customNodeGrpcField ? normalizeEndpoint(customNodeGrpcField.value) : ''
     const customNodeExplorer = customNodeExplorerField ? customNodeExplorerField.value : ''
+
+    if (!customNodeGrpc) {
+      Session.set('nodeStatus', 'failed')
+      if (customNodeGrpcField) customNodeGrpcField.focus()
+      return
+    }
 
     Session.set('nodeId', 'custom')
     Session.set('nodeName', customNodeName)

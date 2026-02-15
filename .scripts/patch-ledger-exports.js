@@ -222,7 +222,36 @@ function patchElectrifyQrl() {
   if (envSource.includes(oldDevBundleBlock)) {
     envSource = envSource.replace(oldDevBundleBlock, newDevBundleBlock);
     fs.writeFileSync(envFile, envSource);
+    envSource = fs.readFileSync(envFile, 'utf8');
     console.log('Patched @theqrl/electrify-qrl Meteor dev_bundle detection');
+  }
+
+  const oldPackagedSettingsBlock = `  if(this.app.is_packaged) {
+    this.app.settings = require(join(this.app.root, 'app', 'settings.json'));
+  } else if(process.env.ELECTRIFY_SETTINGS_FILE)
+    this.app.settings = require(process.env.ELECTRIFY_SETTINGS_FILE);
+  else
+    this.app.settings = settings || {};`;
+  const newPackagedSettingsBlock = `  if(this.app.is_packaged) {
+    var packagedSettingsPath = join(this.app.root, 'app', 'settings.json');
+    if (!fs.existsSync(packagedSettingsPath) && /\\.asar\\.unpacked$/m.test(this.app.root)) {
+      var packedRoot = this.app.root.replace(/\\.asar\\.unpacked$/m, '.asar');
+      var packedSettingsPath = join(packedRoot, 'app', 'settings.json');
+      if (fs.existsSync(packedSettingsPath)) {
+        packagedSettingsPath = packedSettingsPath;
+      }
+    }
+    this.app.settings = require(packagedSettingsPath);
+  } else if(process.env.ELECTRIFY_SETTINGS_FILE)
+    this.app.settings = require(process.env.ELECTRIFY_SETTINGS_FILE);
+  else
+    this.app.settings = settings || {};`;
+
+  if (envSource.includes(oldPackagedSettingsBlock)) {
+    envSource = envSource.replace(oldPackagedSettingsBlock, newPackagedSettingsBlock);
+    fs.writeFileSync(envFile, envSource);
+    envSource = fs.readFileSync(envFile, 'utf8');
+    console.log('Patched @theqrl/electrify-qrl packaged settings fallback for ASAR');
   }
 
   let nodejsSource = fs.readFileSync(nodejsFile, 'utf8');

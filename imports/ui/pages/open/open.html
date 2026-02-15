@@ -15,10 +15,8 @@
   <div class="card-body">
     <div class="space-y-6">
       <!-- Wallet Type & Input -->
-      <div class="form-control w-full">
-        <label class="badge badge-outline">
-          <span class="label-text">Wallet Seed / File</span>
-        </label>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Wallet Seed / File</legend>
         <div id="addressFields" class="flex flex-wrap gap-2 items-center">
           <!-- Toggle visibility button -->
           <button id="eye" class="btn btn-square btn-ghost">
@@ -29,13 +27,13 @@
           </button>
 
           <!-- File input -->
-          <input type="file" id="walletFile" accept="text/json" name="walletFile[]" class="file-input file-input-bordered flex-1 min-w-[200px] bg-base-100" />
+          <input type="file" id="walletFile" accept="text/json" name="walletFile[]" class="file-input flex-1 min-w-[200px] bg-base-100" />
 
           <!-- Text input for mnemonic/hexseed (hidden by default) -->
-          <input type="password" id="walletCode" name="walletCode" autocomplete="off" class="input input-bordered flex-1 min-w-[200px] bg-base-100 hidden" placeholder="Enter mnemonic or hexseed" />
+          <input type="password" id="walletCode" name="walletCode" autocomplete="off" class="input flex-1 min-w-[200px] bg-base-100 hidden" placeholder="Enter mnemonic or hexseed" />
 
           <!-- Wallet type selector -->
-          <select id="walletType" class="select select-bordered w-48 bg-base-100">
+          <select id="walletType" class="select w-48 bg-base-100">
             <option value="file">Wallet File</option>
             <option value="mnemonic">Mnemonic Phrase</option>
             <option value="hexseed">Hexseed</option>
@@ -45,21 +43,19 @@
         {{#if isWindowsNotElectron}}
         <p class="text-sm text-base-content/70 mt-2">To use a Ledger Nano device on Windows, download the desktop wallet from https://theqrl.org</p>
         {{/if}}
-      </div>
+      </fieldset>
 
       <!-- Passphrase Area -->
       <div id="passphraseArea" class="space-y-4">
-        <div class="form-control w-full">
-          <label class="badge badge-outline">
-            <span class="label-text">Passphrase (Optional for Secure Wallet Files)</span>
-          </label>
-          <label class="input input-bordered flex items-center gap-2 bg-base-100">
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Passphrase (Optional for Secure Wallet Files)</legend>
+          <label class="input w-full flex items-center gap-2 bg-base-100">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             <input type="password" id="passphrase" class="grow" placeholder="Enter passphrase" />
           </label>
-        </div>
+        </fieldset>
         <p class="text-sm text-base-content/70 italic">This passphrase decrypts the sensitive information contained in your wallet file, including your address, hexseed and mnemonic phrase. Only enter a password if you've selected a secure wallet file.</p>
       </div>
 
@@ -195,7 +191,7 @@
 
 <!-- Update Wallet File Format Modal -->
 <dialog class="modal" id="updateWalletFileFormat">
-  <div class="modal-box">
+  <div class="modal-box wallet-modal-box">
     <h3 class="font-bold text-lg">Warning</h3>
     <div role="alert" class="alert alert-warning mt-4">
       <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">

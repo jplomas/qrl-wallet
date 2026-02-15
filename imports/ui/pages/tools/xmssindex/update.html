@@ -1,22 +1,25 @@
 <template name="appXmssIndexUpdate">
 
-<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="otsKeyReuseDetected">
-  <div class="text-lg font-semibold">OTS Key Reuse</div>
-  <div class="">
-    <div class="alert alert-warning gap-3"> <div class="">
-        <div class="text-lg font-semibold">
-          You have attempted to set your Ledger Device to an OTS XMSS Index that has already been utilised.
-          <br /><br />
-          Please set your OTS Index to something that has not been used.
+<dialog class="modal" id="otsKeyReuseDetected">
+  <div class="modal-box wallet-modal-box">
+    <div class="text-lg font-semibold">OTS Key Reuse</div>
+      <div class="">
+        <div class="alert alert-warning gap-3"> <div class="">
+            <div class="text-lg font-semibold">
+              You have attempted to set your Ledger Device to an OTS XMSS Index that has already been utilised.
+              <br /><br />
+              Please set your OTS Index to something that has not been used.
+            </div>
+            <p></p>
+          </div>
         </div>
-        <p></p>
       </div>
-    </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-success">Okay</button>
+      </div>
   </div>
-  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
-    <div class="btn btn-success">Okay</div>
-  </div>
-</div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
 <h2 class="text-lg font-semibold pageHeader">
   <i class="envelope"></i>

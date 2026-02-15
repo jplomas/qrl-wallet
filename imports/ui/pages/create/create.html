@@ -18,29 +18,15 @@
       <div class="space-y-6">
         <!-- Passphrase Fields -->
         <div id="passphraseArea" class="space-y-4">
-          <div class="form-control w-full">
-            <label class="badge badge-outline">
-              <span class="label-text">Passphrase</span>
-            </label>
-            <label class="input input-bordered flex items-center gap-2 bg-base-100">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <input type="password" id="passphrase" class="grow" placeholder="Enter passphrase" />
-            </label>
-          </div>
+          <fieldset class="fieldset w-full">
+            <legend class="fieldset-legend">Passphrase</legend>
+            <input type="password" id="passphrase" class="input w-full" placeholder="Enter passphrase" autocomplete="new-password" />
+          </fieldset>
 
-          <div class="form-control w-full">
-            <label class="badge badge-outline">
-              <span class="label-text">Confirm Passphrase</span>
-            </label>
-            <label class="input input-bordered flex items-center gap-2 bg-base-100">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <input type="password" id="passphraseConfirm" class="grow" placeholder="Confirm passphrase" />
-            </label>
-          </div>
+          <fieldset class="fieldset w-full">
+            <legend class="fieldset-legend">Confirm Passphrase</legend>
+            <input type="password" id="passphraseConfirm" class="input w-full" placeholder="Confirm passphrase" autocomplete="new-password" />
+          </fieldset>
 
           <div id="passwordStrength" class="hidden">
             <div class="flex gap-1">
@@ -55,11 +41,9 @@
         </div>
 
         <!-- XMSS Tree Height Select -->
-        <div class="form-control w-full">
-          <label class="badge badge-outline">
-            <span class="label-text">XMSS Tree Height</span>
-          </label>
-          <select id="xmssHeight" class="select select-bordered w-full bg-base-100">
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">XMSS Tree Height</legend>
+          <select id="xmssHeight" class="select w-full bg-base-100">
             <option value="8">Tree Height: 8 — 256 signatures</option>
             <option value="10" selected>Tree Height: 10 — 1,024 signatures</option>
             <option value="12">Tree Height: 12 — 4,096 signatures</option>
@@ -67,19 +51,17 @@
             <option value="16">Tree Height: 16 — 65,536 signatures</option>
             <option value="18">Tree Height: 18 — 262,144 signatures</option>
           </select>
-        </div>
+        </fieldset>
 
         <!-- Hash Function Select -->
-        <div class="form-control w-full">
-          <label class="badge badge-outline">
-            <span class="label-text">Hash Function</span>
-          </label>
-          <select id="hashFunction" class="select select-bordered w-full bg-base-100">
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Hash Function</legend>
+          <select id="hashFunction" class="select w-full bg-base-100">
             <option value="SHAKE_128" selected>SHAKE_128 (Default)</option>
             <option value="SHAKE_256">SHAKE_256</option>
             <option value="SHA2_256">SHA2_256</option>
           </select>
-        </div>
+        </fieldset>
       </div>
 
       <!-- Right Column: Info -->

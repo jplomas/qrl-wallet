@@ -11,19 +11,31 @@
 </div>
 
 <!-- Main Card -->
-<div class="card-gradient">
-  <div class="card-body">
-    <p class="text-base-content/70 mb-4">Enter a transaction ID to verify its details on the QRL network.</p>
-    
-    <div class="join w-full max-w-2xl mx-auto">
-      <input id="transactionId" type="text" placeholder="Enter Transaction ID" autocomplete="off" class="input input-bordered join-item flex-1 bg-base-100" />
-      <button class="btn btn-primary join-item gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        Verify
-      </button>
-    </div>
+<div class="card bg-base-200 border border-base-300 shadow-sm">
+  <div class="card-body gap-5">
+    <p class="text-base-content/70">Enter a transaction ID to verify its details on the QRL network.</p>
+
+    <form id="verifyTransactionForm" class="space-y-4" novalidate>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">Transaction ID</legend>
+        <div class="join w-full">
+          <input id="transactionId" type="text" placeholder="64-character transaction hash" autocomplete="off" class="input input-bordered join-item w-full bg-base-100" />
+          <button id="verifyTransactionButton" type="submit" class="btn btn-primary join-item gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Verify
+          </button>
+        </div>
+        <p class="label">Paste the transaction hash exactly as shown in wallet history or explorer.</p>
+      </fieldset>
+
+      {{#if verifyInputError}}
+        <div role="alert" class="alert alert-warning">
+          <span>{{verifyInputError}}</span>
+        </div>
+      {{/if}}
+    </form>
   </div>
 </div>
 

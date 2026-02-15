@@ -114,6 +114,34 @@ function verifyAsarLayout(target) {
   return asarPath;
 }
 
+function restoreMissingUnpackedAppRootFiles(target) {
+  const resourcesPath = resourcesPathFor(target);
+  const unpackedAppDir = path.join(resourcesPath, 'app.asar.unpacked', 'app');
+  const sourceAppDir = path.join(process.cwd(), '.electrify', 'app');
+
+  if (!fs.existsSync(sourceAppDir)) {
+    return;
+  }
+
+  fs.mkdirSync(unpackedAppDir, { recursive: true });
+
+  const sourceEntries = fs.readdirSync(sourceAppDir, { withFileTypes: true });
+  sourceEntries.forEach((entry) => {
+    if (!entry.isFile()) {
+      return;
+    }
+
+    const sourceFile = path.join(sourceAppDir, entry.name);
+    const targetFile = path.join(unpackedAppDir, entry.name);
+    if (fs.existsSync(targetFile)) {
+      return;
+    }
+
+    fs.copyFileSync(sourceFile, targetFile);
+    console.log(`[hardening] restored missing unpacked app file: ${targetFile}`);
+  });
+}
+
 function verifyMacAsarIntegrityMetadata(target) {
   const infoPlist = path.join(target.appPath, 'Contents', 'Info.plist');
   let metadata;
@@ -212,6 +240,7 @@ async function main() {
   for (const target of targets) {
     const asarPath = verifyAsarLayout(target);
     console.log(`[hardening] verified asar layout: ${asarPath}`);
+    restoreMissingUnpackedAppRootFiles(target);
 
     if (target.platform === 'darwin') {
       verifyMacAsarIntegrityMetadata(target);

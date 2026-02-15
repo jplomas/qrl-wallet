@@ -156,21 +156,14 @@ function bindModalActions($modal) {
 }
 
 function applyModalVisibility($modal, visible) {
-  if ($modal.is('dialog')) {
-    if (visible) {
-      $modal[0].showModal()
-    } else {
-      $modal[0].close()
-    }
+  if (!$modal.is('dialog')) {
     return
   }
 
   if (visible) {
-    $modal.removeClass('hidden').addClass('flex')
-    $modal.show()
-  } else {
-    $modal.removeClass('flex').addClass('hidden')
-    $modal.hide()
+    if (!$modal[0].open) $modal[0].showModal()
+  } else if ($modal[0].open) {
+    $modal[0].close()
   }
 }
 
@@ -298,7 +291,7 @@ function initDropdowns(target = 'select') {
   $elements.each(function () {
     const $el = $(this)
     if ($el.is('select')) {
-      $el.addClass('select select-bordered bg-base-100')
+      $el.addClass('select bg-base-100')
       if (!$el.hasClass('w-full')) {
         $el.addClass('w-full')
       }

@@ -1,78 +1,90 @@
 <template name="appNotariseStart">
 
-<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="lowOtsKeyWarning">
-  <div class="text-lg font-semibold">OTS Keys Running Low!</div>
-  <div class="">
-    <div class="alert alert-warning gap-3"> <div class="">
-        <div class="text-lg font-semibold">
-          Warning: Your OTS Keys are running low.
+<dialog class="modal" id="lowOtsKeyWarning">
+  <div class="modal-box wallet-modal-box">
+    <div class="text-lg font-semibold">OTS Keys Running Low!</div>
+      <div class="">
+        <div class="alert alert-warning gap-3"> <div class="">
+            <div class="text-lg font-semibold">
+              Warning: Your OTS Keys are running low.
+            </div>
+            <p>You only have <strong>{{otsKeysRemaining}}</strong> OTS Keys remaining. When you have used all of these, you will no longer be able to send QRL or Tokens from this wallet.</p>
+            <p>It is strongly suggested that you create a new wallet, and move all your QRL and Tokens to it to ensure you do not lose access to your funds.</p>
+            <p><a href="https://docs.theqrl.org/developers/ots/" target="_blank">Click here to learn what OTS Keys are.</a></p>
+          </div>
         </div>
-        <p>You only have <strong>{{otsKeysRemaining}}</strong> OTS Keys remaining. When you have used all of these, you will no longer be able to send QRL or Tokens from this wallet.</p>
-        <p>It is strongly suggested that you create a new wallet, and move all your QRL and Tokens to it to ensure you do not lose access to your funds.</p>
-        <p><a href="https://docs.theqrl.org/developers/ots/" target="_blank">Click here to learn what OTS Keys are.</a></p>
       </div>
-    </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-error">Okay</button>
+      </div>
   </div>
-  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
-    <div class="btn btn-error">Okay</div>
-  </div>
-</div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
-<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="invalidNodeResponse">
-  <div class="text-lg font-semibold">WARNING - Bad Response</div>
-  <div class="">
-    <div class="alert alert-warning gap-3"> <div class="">
-        <div class="text-lg font-semibold">
-          WARNING - The node you've requested this transaction from replied with bad data that doesn't match your intended transaction parameters.
-          <br /><br />
-          This transaction has been cancelled automatically to protect your funds.
-          <br /><br />
-          Please report this issue through a Github issue, or directly to the QRL Team via email: info@theqrl.org
+<dialog class="modal" id="invalidNodeResponse">
+  <div class="modal-box wallet-modal-box">
+    <div class="text-lg font-semibold">WARNING - Bad Response</div>
+      <div class="">
+        <div class="alert alert-warning gap-3"> <div class="">
+            <div class="text-lg font-semibold">
+              WARNING - The node you've requested this transaction from replied with bad data that doesn't match your intended transaction parameters.
+              <br /><br />
+              This transaction has been cancelled automatically to protect your funds.
+              <br /><br />
+              Please report this issue through a Github issue, or directly to the QRL Team via email: info@theqrl.org
+            </div>
+            <p></p>
+          </div>
         </div>
-        <p></p>
       </div>
-    </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-error">Okay</button>
+      </div>
   </div>
-  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
-    <div class="btn btn-error">Okay</div>
-  </div>
-</div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
-<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="otsKeyReuseDetected">
-  <div class="text-lg font-semibold">OTS Key Reuse</div>
-  <div class="">
-    <div class="alert alert-warning gap-3"> <div class="">
-        <div class="text-lg font-semibold">
-          You have attempted to create a transaction using an OTS Key Index that has previously been used on the QRL Network.
-          <br /><br />
-          Please recreate your transaction using a unique OTS Key Index.
+<dialog class="modal" id="otsKeyReuseDetected">
+  <div class="modal-box wallet-modal-box">
+    <div class="text-lg font-semibold">OTS Key Reuse</div>
+      <div class="">
+        <div class="alert alert-warning gap-3"> <div class="">
+            <div class="text-lg font-semibold">
+              You have attempted to create a transaction using an OTS Key Index that has previously been used on the QRL Network.
+              <br /><br />
+              Please recreate your transaction using a unique OTS Key Index.
+            </div>
+            <p></p>
+          </div>
         </div>
-        <p></p>
       </div>
-    </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-success">Okay</button>
+      </div>
   </div>
-  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
-    <div class="btn btn-success">Okay</div>
-  </div>
-</div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
-<div class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto" id="ledgerOtsKeyReuseDetected">
-  <div class="text-lg font-semibold">OTS Key Reuse</div>
-  <div class="">
-    <div class="alert alert-warning gap-3"> <div class="">
-        <div class="text-lg font-semibold">
-          You have attempted to create a transaction using an OTS Key Index that has previously been used on the QRL Network.
-          <br /><br />
-          You need to update your Ledgers XMSS Index in Tools -> Set XMSS Index.
+<dialog class="modal" id="ledgerOtsKeyReuseDetected">
+  <div class="modal-box wallet-modal-box">
+    <div class="text-lg font-semibold">OTS Key Reuse</div>
+      <div class="">
+        <div class="alert alert-warning gap-3"> <div class="">
+            <div class="text-lg font-semibold">
+              You have attempted to create a transaction using an OTS Key Index that has previously been used on the QRL Network.
+              <br /><br />
+              You need to update your Ledgers XMSS Index in Tools -> Set XMSS Index.
+            </div>
+            <p></p>
+          </div>
         </div>
-        <p></p>
       </div>
-    </div>
+      <div class="modal-action">
+        <button type="button" class="btn btn-success">Okay</button>
+      </div>
   </div>
-  <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-base-300 pt-3">
-    <div class="btn btn-success">Okay</div>
-  </div>
-</div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
 <h4 class="text-lg font-semibold pageHeader">
   <i class="edit"></i>
@@ -101,37 +113,37 @@
     </h4>
     <input type="hidden" id="message" autocomplete="off">
 
-    <div class="space-y-2">
-      <label>Select Document</label>
-      <input type="file" id="notaryDocument" accept="text/json" name="notaryDocument[]" />
-    </div>
+    <fieldset class="fieldset w-full">
+      <legend class="fieldset-legend">Select Document</legend>
+      <input type="file" id="notaryDocument" accept="text/json" name="notaryDocument[]" class="file-input w-full bg-base-100" />
+    </fieldset>
 
-    <div class="space-y-2">
-      <label>Notarisation Hash Function</label>
-      <select id="hashFunction" class="select select-bordered w-full bg-base-100">
+    <fieldset class="fieldset w-full">
+      <legend class="fieldset-legend">Notarisation Hash Function</legend>
+      <select id="hashFunction" class="select w-full bg-base-100">
         <option value="SHA256">SHA256</option>
       </select>
-    </div>
+    </fieldset>
 
-    <div class="space-y-2">
-      <label>Additional Text <i id="additional_text_max_length">(Max Length: 45)</i></label>
-      <input type="text" id="additional_text" autocomplete="off">
-    </div>
+    <fieldset class="fieldset w-full">
+      <legend class="fieldset-legend">Additional Text <i id="additional_text_max_length">(Max Length: 45)</i></legend>
+      <input type="text" id="additional_text" autocomplete="off" class="input w-full bg-base-100">
+    </fieldset>
 
     <h4 class="text-lg font-semibold divider">
       <i class="send"></i>
       Transaction
     </h4>
 
-    <div class="space-y-2">
-      <label>Notarisation Fee (In Quanta)</label>
-      <input type="text" id="fee" value="0.25" autocomplete="off">
-    </div>
+    <fieldset class="fieldset w-full">
+      <legend class="fieldset-legend">Notarisation Fee (In Quanta)</legend>
+      <input type="text" id="fee" value="0.25" autocomplete="off" class="input w-full bg-base-100">
+    </fieldset>
 
-    <div class="space-y-2">
-      <label>OTS Key Index</label>
-      <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" {{ledgerWalletDisabled}}>
-    </div>
+    <fieldset class="fieldset w-full">
+      <legend class="fieldset-legend">OTS Key Index</legend>
+      <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" {{ledgerWalletDisabled}} class="input w-full bg-base-100">
+    </fieldset>
 
     <div class="space-y-2">
       <div class="alert alert-warning gap-3" style="display: inline-flex;"> <div class="">

@@ -1,29 +1,23 @@
 <template name="customNode">
-  <dialog id="addNodeModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/60 p-4 overflow-y-auto">
-    <div class="modal-box bg-base-200">
+  <dialog id="addNodeModal" class="modal">
+    <div class="modal-box wallet-modal-box">
       <h3 class="font-bold text-lg text-primary">Custom QRL Node</h3>
-      <form method="dialog" class="mt-4">
-        <div class="form-control w-full mb-4">
-          <label class="badge badge-outline">
-            <span class="label-text">Name</span>
-          </label>
-          <input type="text" id="customNodeName" placeholder="Private Node" value="{{customNodeName}}" class="input input-bordered w-full bg-base-100" />
-        </div>
-        <div class="form-control w-full mb-4">
-          <label class="badge badge-outline">
-            <span class="label-text">gRPC API Endpoint</span>
-          </label>
-          <input type="text" id="customNodeGrpc" placeholder="privatenode.com:19009" value="{{customNodeGrpc}}" class="input input-bordered w-full bg-base-100" />
-        </div>
-        <div class="form-control w-full mb-4">
-          <label class="badge badge-outline">
-            <span class="label-text">Block Explorer URL</span>
-          </label>
-          <input type="text" id="customNodeExplorer" placeholder="https://explorer.theqrl.org" value="{{customNodeExplorer}}" class="input input-bordered w-full bg-base-100" />
-        </div>
+      <form method="dialog" class="mt-4 space-y-4">
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Name</legend>
+          <input type="text" id="customNodeName" placeholder="Private Node" value="{{customNodeName}}" class="input w-full bg-base-100" />
+        </fieldset>
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">gRPC API Endpoint</legend>
+          <input type="text" id="customNodeGrpc" placeholder="privatenode.com:19009" value="{{customNodeGrpc}}" class="input w-full bg-base-100" />
+        </fieldset>
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Block Explorer URL</legend>
+          <input type="text" id="customNodeExplorer" placeholder="https://explorer.theqrl.org" value="{{customNodeExplorer}}" class="input w-full bg-base-100" />
+        </fieldset>
         <div class="modal-action">
           <button type="button" id="saveCustomNode" class="btn btn-success">Save Custom Node</button>
-          <button type="button" id="cancelCustomNode" class="btn btn-error">Cancel</button>
+          <button type="button" id="cancelCustomNode" class="btn btn-outline">Cancel</button>
         </div>
       </form>
     </div>
