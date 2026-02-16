@@ -227,6 +227,64 @@ function patchElectrifyQrl() {
     console.log('Patched @theqrl/electrify-qrl ensure_deps spawn for Windows shell');
   }
 
+  const oldBundleMeteorSpawn = `  spawn('meteor' + (this.$.env.os.is_windows ? '.bat' : ''), [
+      'build', tmp_dir,
+      '--server', null,
+      // '--server', (server_url !== undefined ? server_url : null),
+      '--directory'
+    ], {
+      cwd: this.$.env.app.meteor,
+      env: env,
+      stdio: this.$.env.stdio
+    }
+  ).on('exit', function(){`;
+  const newBundleMeteorSpawn = `  var meteorCmd = 'meteor' + (this.$.env.os.is_windows ? '.bat' : '');
+  var meteorArgs = ['build', tmp_dir, '--directory'];
+
+  spawn(meteorCmd, meteorArgs, {
+      cwd: this.$.env.app.meteor,
+      env: env,
+      stdio: this.$.env.stdio,
+      shell: this.$.env.os.is_windows
+    }
+  ).on('exit', function(){`;
+
+  if (appSource.includes(oldBundleMeteorSpawn)) {
+    appSource = appSource.replace(oldBundleMeteorSpawn, newBundleMeteorSpawn);
+    fs.writeFileSync(appFile, appSource);
+    appSource = fs.readFileSync(appFile, 'utf8');
+    console.log('Patched @theqrl/electrify-qrl meteor build spawn for Windows shell and Meteor 3 args');
+  }
+
+  const oldBundleMeteorSpawnWithCodeExit = `  spawn('meteor' + (this.$.env.os.is_windows ? '.bat' : ''), [
+      'build', tmp_dir,
+      '--server', null,
+      // '--server', (server_url !== undefined ? server_url : null),
+      '--directory'
+    ], {
+      cwd: this.$.env.app.meteor,
+      env: env,
+      stdio: this.$.env.stdio
+    }
+  ).on('exit', function(code){`;
+  const newBundleMeteorSpawnWithCodeExit = `  var meteorCmd = 'meteor' + (this.$.env.os.is_windows ? '.bat' : '');
+  var meteorArgs = ['build', tmp_dir, '--directory'];
+
+  spawn(meteorCmd, meteorArgs, {
+      cwd: this.$.env.app.meteor,
+      env: env,
+      stdio: this.$.env.stdio,
+      shell: this.$.env.os.is_windows
+    }
+  ).on('exit', function(code){`;
+
+  if (appSource.includes(oldBundleMeteorSpawnWithCodeExit)) {
+    appSource = appSource.replace(oldBundleMeteorSpawnWithCodeExit, newBundleMeteorSpawnWithCodeExit);
+    fs.writeFileSync(appFile, appSource);
+    appSource = fs.readFileSync(appFile, 'utf8');
+    console.log('Patched @theqrl/electrify-qrl meteor build spawn for Windows shell (code-exit variant)');
+  }
+
   const oldBundleExitHook = ").on('exit', function(){";
   const newBundleExitHook = ").on('exit', function(code){";
   if (appSource.includes(oldBundleExitHook)) {
