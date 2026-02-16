@@ -113,14 +113,14 @@
   </div>
 </h2>
 
-<div class="rounded-xl border border-base-300 bg-base-100 p-4 text-left pageSegment" id="multisigCreateForm">
+<div class="rounded-xl border border-base-300 bg-base-200 p-4 text-left pageSegment" id="multisigCreateForm">
 
-<div class="">
-  <a class="{{isActiveTab 'create'}}" href="/tools/multisig/create" id="tabBtnCreate">Create</a>
-  <a class="{{isActiveTab 'spend'}}" href="/tools/multisig/spend" id="tabBtnSpend">Spend</a>
-  <a class="{{isActiveTab 'vote'}}" href="/tools/multisig/vote" id="tabBtnVote">Vote</a>
+<div id="multisigTabs" class="tabs tabs-boxed w-full bg-base-200/70 p-1 mb-3">
+  <a class="tab flex-1 {{isActiveTab 'create'}}" href="/tools/multisig/create" id="tabBtnCreate">Create</a>
+  <a class="tab flex-1 {{isActiveTab 'spend'}}" href="/tools/multisig/spend" id="tabBtnSpend">Spend</a>
+  <a class="tab flex-1 {{isActiveTab 'vote'}}" href="/tools/multisig/vote" id="tabBtnVote">Vote</a>
 </div>
-<div class="rounded-xl border border-base-300 bg-base-100 p-4 block">
+<div class="rounded-xl border border-base-300 bg-base-200 p-4 block">
   {{> Template.dynamic template=multisig }}
 </div>
  <!--  <form id="generateMessageForm" class="space-y-4">
@@ -186,7 +186,7 @@
     </div>
 
     <div class="space-y-2">
-      <button id="createMessage" class="btn btn-lg btn-error" style="float: left;">Create Keybase Transaction</button>
+      <button id="createMessage" class="btn btn-md btn-error" style="float: left;">Create Keybase Transaction</button>
       <br />
     </div>
 

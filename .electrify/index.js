@@ -1,8 +1,10 @@
 const { app, BrowserWindow, Menu } = require('electron');
 const electrify = require('@theqrl/electrify-qrl')(__dirname);
+const { version: APP_VERSION } = require('./package.json');
 
 let window;
 let loading;
+const WINDOW_TITLE = `QRL Wallet v${APP_VERSION}`;
 const MAX_MAIN_LOAD_RETRIES = 60;
 const MAX_BLANK_RECOVERY_ATTEMPTS = 3;
 const FORCE_SHOW_DELAY_MS = 12000;
@@ -35,7 +37,8 @@ app.on('ready', function() {
   
   // Create the loading screen
   loading = new BrowserWindow({
-    width: 850, height: 340,
+    width: 425, height: 170,
+    title: WINDOW_TITLE,
     icon: __dirname + '/assets/qrl.png',
     webPreferences: {
       nodeIntegration: false,
@@ -54,6 +57,12 @@ app.on('ready', function() {
   loading.webContents.on('did-fail-load', (event, code, description, validatedURL, isMainFrame) => {
     if (isMainFrame) {
       console.error('[loading] did-fail-load', { code, description, validatedURL });
+    }
+  });
+  loading.webContents.on('page-title-updated', (event) => {
+    event.preventDefault();
+    if (loading && !loading.isDestroyed()) {
+      loading.setTitle(WINDOW_TITLE);
     }
   });
   loading.loadURL(`file://${__dirname}/loading.html`);
@@ -148,8 +157,9 @@ app.on('ready', function() {
 
     // Show the main QRL Wallet Window
     window = new BrowserWindow({
-      width: 1300, height: 720,
+      width: 1300, height: 840,
       show: false,
+      title: WINDOW_TITLE,
       icon: __dirname + '/assets/qrl.png',
       backgroundColor: '#ffffff',
       webPreferences: {
@@ -187,6 +197,12 @@ app.on('ready', function() {
         console.log('[electron] did-start-navigation', { url, isInPlace });
       }
     });
+    window.webContents.on('page-title-updated', (event) => {
+      event.preventDefault();
+      if (window && !window.isDestroyed()) {
+        window.setTitle(WINDOW_TITLE);
+      }
+    });
 
     window.webContents.on('dom-ready', () => {
       inspectRendererDom()
@@ -217,8 +233,8 @@ app.on('ready', function() {
     if (process.platform === 'darwin') {
       app.setAboutPanelOptions({
         applicationName: "QRL Wallet",
-        applicationVersion: "1.9.0",
-        version: "Electron 40.0.0",
+        applicationVersion: APP_VERSION,
+        version: `Electron ${process.versions.electron}`,
         copyright: "Die QRL Stiftung, Zug Switzerland",
         credits: "The QRL Developers"
       });

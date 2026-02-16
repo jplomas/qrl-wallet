@@ -86,67 +86,67 @@
   <form method="dialog" class="modal-backdrop"><button>close</button></form>
 </dialog>
 
-<h4 class="text-lg font-semibold pageHeader">
-  <i class="edit"></i>
-  <div class="">
-    Notarise Document
+<div class="flex items-center gap-3 mb-6">
+  <div class="bg-primary/20 p-3 rounded-lg">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5m-7-7l6 6m0 0l-6 6m6-6H9" />
+    </svg>
   </div>
-</h4>
+  <h1 class="text-2xl font-bold text-base-content">Notarise Document</h1>
+</div>
 
-<div class="rounded-xl border border-base-300 bg-base-100 p-4 text-left pageSegment" id="messageCreateForm">
+<div class="card-gradient text-left pageSegment" id="messageCreateForm">
+  <div class="card-body">
+    <form id="notariseForm" class="space-y-6">
+      <div class="grid gap-3">
+        <div class="rounded-lg border border-base-300/80 bg-base-100/60 p-3">
+          <p class="text-xs uppercase tracking-wide text-base-content/60">From Address</p>
+          <p id="transferFormFromAddress" class="break-all font-mono text-sm text-base-content">{{transferFrom.address}}</p>
+        </div>
+        <div class="rounded-lg border border-base-300/80 bg-base-100/60 p-3">
+          <p class="text-xs uppercase tracking-wide text-base-content/60">Quanta Balance</p>
+          <p class="text-sm font-semibold text-base-content">{{transferFrom.balance}}</p>
+        </div>
+      </div>
 
-  <form id="notariseForm" class="space-y-4">
+      <p class="text-sm text-base-content/75">
+        This function saves a hash of the selected document permanently on the QRL network and associates it with your QRL address. You can share the transaction hash to prove document notarisation.
+      </p>
 
-    <h4 class="text-lg font-semibold dividing">Notary</h4>
+      <div class="divider text-sm font-semibold">Document Notarisation</div>
+      <input type="hidden" id="message" autocomplete="off">
 
-    <h4 id="transferFormFromAddress" class="breakable"><a class="badge badge-outline purple">From Address</a> {{transferFrom.address}}</h4>
-    <h4 class="breakable"><a class="badge badge-outline yellow">Quanta Balance</a> {{transferFrom.balance}}</h4>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Select Document</legend>
+        <input type="file" id="notaryDocument" accept="text/json" name="notaryDocument[]" class="file-input file-input-bordered w-full bg-base-100" />
+      </fieldset>
 
-    <br />
-    <div class="space-y-2">
-      This function will save a hash of the selected document permanently on the QRL network, and will be associated with your QRL address. You can share the resultant transaction hash with someone to prove you have notarised the document.
-    </div>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Notarisation Hash Function</legend>
+        <select id="hashFunction" class="select select-bordered w-full bg-base-100">
+          <option value="SHA256">SHA256</option>
+        </select>
+      </fieldset>
 
-    <h4 class="text-lg font-semibold divider">
-      <i class="edit"></i>
-      Document Notarisation
-    </h4>
-    <input type="hidden" id="message" autocomplete="off">
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Additional Text <i id="additional_text_max_length">(Max Length: 45)</i></legend>
+        <input type="text" id="additional_text" autocomplete="off" class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend">Select Document</legend>
-      <input type="file" id="notaryDocument" accept="text/json" name="notaryDocument[]" class="file-input w-full bg-base-100" />
-    </fieldset>
+      <div class="divider text-sm font-semibold">Transaction</div>
 
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend">Notarisation Hash Function</legend>
-      <select id="hashFunction" class="select w-full bg-base-100">
-        <option value="SHA256">SHA256</option>
-      </select>
-    </fieldset>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Notarisation Fee (In Quanta)</legend>
+        <input type="text" id="fee" value="0.25" autocomplete="off" class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend">Additional Text <i id="additional_text_max_length">(Max Length: 45)</i></legend>
-      <input type="text" id="additional_text" autocomplete="off" class="input w-full bg-base-100">
-    </fieldset>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">OTS Key Index</legend>
+        <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" {{ledgerWalletDisabled}} class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <h4 class="text-lg font-semibold divider">
-      <i class="send"></i>
-      Transaction
-    </h4>
-
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend">Notarisation Fee (In Quanta)</legend>
-      <input type="text" id="fee" value="0.25" autocomplete="off" class="input w-full bg-base-100">
-    </fieldset>
-
-    <fieldset class="fieldset w-full">
-      <legend class="fieldset-legend">OTS Key Index</legend>
-      <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" {{ledgerWalletDisabled}} class="input w-full bg-base-100">
-    </fieldset>
-
-    <div class="space-y-2">
-      <div class="alert alert-warning gap-3" style="display: inline-flex;"> <div class="">
+      <div class="alert alert-warning gap-3">
+        <div>
           <div class="text-lg font-semibold">
             OTS Key Index Warning
           </div>
@@ -157,15 +157,16 @@
           {{/if}}
         </div>
       </div>
-    </div>
 
-    <div class="space-y-2">
-      <button id="createMessage" class="btn btn-lg btn-error" style="float: left;">Notarise Document</button>
-      <br />
-    </div>
+      <div class="pt-2">
+        <button id="createMessage" class="btn btn-md btn-success gap-2" type="submit">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Notarise Document
+        </button>
+      </div>
 
-    <div class="space-y-2">
-      <br />
       <div id="generating" style="display: none;" class="alert gap-3">
         <span class="loading loading-spinner loading-md"></span>
         <div class="">
@@ -175,12 +176,11 @@
           <p>Notarising document...</p>
         </div>
       </div>
-    </div>   
-
-  </form>
+    </form>
+  </div>
 </div>
 
-<div id="documentNotarisationFailed" class="rounded-xl border border-base-300 bg-base-100 p-4 pageSegment" style="display: none;">
+<div id="documentNotarisationFailed" class="card-gradient p-4 pageSegment" style="display: none;">
   <h4>Document Notarisation Failed</h4>
   <p style="word-wrap: break-word; word-break: break-all;">Error: {{documentNotarisationError}}</p>
 </div>

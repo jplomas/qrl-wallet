@@ -3,7 +3,7 @@ import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 Template.appMultisigMenu.helpers({
   isActiveTab(p) {
     if (Session.get('activeMultisigTab') === p) {
-      return 'active'
+      return 'tab-active'
     }
     return ''
   },

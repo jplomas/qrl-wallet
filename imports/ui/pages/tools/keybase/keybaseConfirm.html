@@ -68,14 +68,14 @@
   <form method="dialog" class="modal-backdrop"><button>close</button></form>
 </dialog>
 
-<h2 class="text-lg font-semibold pageHeader">
-  <i class=""><img src="/img/keybase-w.svg"></i>
-  <div class="">
-    Keybase Confirmation
+<div class="flex items-center gap-3 mb-6">
+  <div class="bg-primary/20 p-3 rounded-lg">
+    <img src="/img/keybase-w.svg" class="h-6 w-6" alt="Keybase">
   </div>
-</h2>
+  <h1 class="text-2xl font-bold text-base-content">Keybase Confirmation</h1>
+</div>
 
-<div id="messageCreationConfirmation" class="rounded-xl border border-base-300 bg-base-100 p-4 pageSegment">
+<div id="messageCreationConfirmation" class="card-gradient p-4 pageSegment">
 
   <h4 class="text-lg font-semibold divider">
     <i class=""><img src="/img/keybase.svg"></i>
@@ -127,7 +127,12 @@
 
   <div class="grid gap-4 md:grid-cols-2">
     <div class="text-center">
-      <button id="confirmMessage" class="btn btn-lg btn-error">
+      <button id="confirmMessage" class="btn btn-md btn-success gap-2">
+        {{#if isSeedWallet}}
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+        {{/if}}
         {{#if isSeedWallet}}
           Confirm Keybase Details
         {{else}}
@@ -136,7 +141,7 @@
       </button>
     </div>
     <div class="text-center">
-      <button id="cancelMessage" class="btn btn-lg btn-error btn-outline">Cancel Message</button>
+      <button id="cancelMessage" class="btn btn-md btn-outline">Cancel Message</button>
     </div>
   </div>
 
@@ -153,7 +158,7 @@
 
 </div>
 
-<div id="transactionFailed" class="rounded-xl border border-base-300 bg-base-100 p-4 pageSegment" style="display: none;">
+<div id="transactionFailed" class="card-gradient p-4 pageSegment" style="display: none;">
   <h4>Transaction Failed</h4>
   <p style="overflow-wrap: break-word">
     Error! Your message has failed to relay into the QRL network.<br /><br />

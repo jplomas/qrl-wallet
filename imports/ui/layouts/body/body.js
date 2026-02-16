@@ -41,13 +41,16 @@ const normalizeEndpoint = (endpoint) => {
 }
 
 const setNetworkSelect = (value) => {
-  const networkSelect = document.getElementById('network')
-  if (!networkSelect) return
-
   const fallback = DEFAULT_NETWORKS[0].id
   const nextValue = value || fallback
-  const hasOption = Array.from(networkSelect.options).some((option) => option.value === nextValue)
-  networkSelect.value = hasOption ? nextValue : fallback
+  const selectIds = ['network', 'networkMobile']
+
+  selectIds.forEach((selectId) => {
+    const networkSelect = document.getElementById(selectId)
+    if (!networkSelect) return
+    const hasOption = Array.from(networkSelect.options).some((option) => option.value === nextValue)
+    networkSelect.value = hasOption ? nextValue : fallback
+  })
 }
 
 const handleNetworkChange = (value) => {
@@ -197,19 +200,24 @@ Template.appBody.onRendered(function onRendered() {
   this._networkChangeHandler = (event) => {
     handleNetworkChange(event.target.value)
   }
-  const networkSelect = document.getElementById('network')
-  if (networkSelect) {
-    networkSelect.addEventListener('change', this._networkChangeHandler)
-  }
+  this._networkSelectElements = []
+  ;['network', 'networkMobile'].forEach((selectId) => {
+    const networkSelect = document.getElementById(selectId)
+    if (networkSelect) {
+      networkSelect.addEventListener('change', this._networkChangeHandler)
+      this._networkSelectElements.push(networkSelect)
+    }
+  })
 
   // Debug log for web assembly support
   console.log('Web Assembly Supported: ', supportedBrowser())
 })
 
 Template.appBody.onDestroyed(function onDestroyed() {
-  const networkSelect = document.getElementById('network')
-  if (networkSelect && this._networkChangeHandler) {
-    networkSelect.removeEventListener('change', this._networkChangeHandler)
+  if (this._networkSelectElements && this._networkChangeHandler) {
+    this._networkSelectElements.forEach((networkSelect) => {
+      networkSelect.removeEventListener('change', this._networkChangeHandler)
+    })
   }
 })
 

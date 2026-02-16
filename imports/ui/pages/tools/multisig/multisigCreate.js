@@ -702,12 +702,17 @@ Template.multisigCreate.events({
 
     const newTransferRecipient = `
       <div>
-        <div class="field">
-          <label>Additional Signatory</label>
-          <div class="grid gap-2 md:grid-cols-10" id="amountFields" style="width: 100%; margin-bottom: 10px;">
-            <input type="text" id="to_${nextRecipientId}" name="to[]" placeholder="Address" style="width: 55%;">
-            <input type="text" id="amounts_${nextRecipientId}" name="amounts[]" placeholder="Weight" style="width: 30%;">
-            <button class="btn btn-error btn-sm removeTransferRecipient" style="width: 10%"><span aria-hidden="true">−</span></button>
+        <div class="field mt-4">
+          <label class="fieldset-legend">Additional Signatory</label>
+          <div class="grid gap-2 md:grid-cols-[1fr_170px_auto]">
+            <input type="text" id="to_${nextRecipientId}" name="to[]" placeholder="Address" class="input input-bordered w-full bg-base-100">
+            <input type="text" id="amounts_${nextRecipientId}" name="amounts[]" placeholder="Weight" class="input input-bordered w-full bg-base-100">
+            <button type="button" class="btn btn-error btn-sm removeTransferRecipient gap-1" aria-label="Remove signatory">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-3H10a1 1 0 00-1 1v2h6V5a1 1 0 00-1-1z" />
+              </svg>
+              Remove
+            </button>
           </div>
         </div>
       </div>

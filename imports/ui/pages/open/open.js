@@ -39,6 +39,18 @@ function clearLedgerDetails() {
   Session.set('ledgerDetailsPkHex', '')
 }
 
+function syncWalletTypeTabs(selectedType) {
+  const tabs = document.querySelectorAll('.wallet-type-tab')
+  tabs.forEach((tabButton) => {
+    const tabType = tabButton.getAttribute('data-wallet-type')
+    if (tabType === selectedType) {
+      tabButton.classList.add('tab-active')
+    } else {
+      tabButton.classList.remove('tab-active')
+    }
+  })
+}
+
 function closeAllOpenDialogs() {
   const openDialogs = document.querySelectorAll('dialog[open]')
   openDialogs.forEach((dialog) => {
@@ -295,6 +307,7 @@ function updateWalletType() {
     return
   }
   const walletType = walletTypeElement.value
+  syncWalletTypeTabs(walletType)
   const walletCode = document.getElementById('walletCode')
   const walletFile = document.getElementById('walletFile')
 
@@ -314,7 +327,7 @@ function updateWalletType() {
     hideElement('passphraseArea')
     hideElement('unlockButton')
     hideElement('eye')
-    walletCode?.classList.remove('hidden')
+    walletCode?.classList.add('hidden')
     showElement('ledgerArea')
     if (walletCode) walletCode.disabled = true
     showElement('ledgerRefreshButton')
@@ -356,6 +369,9 @@ Template.appAddressOpen.onRendered(() => {
   }
   const walletTypeSelect = document.getElementById('walletType')
   if (walletTypeSelect) {
+    if (!walletTypeSelect.querySelector(`option[value="${openWalletPref}"]`)) {
+      openWalletPref = 'file'
+    }
     walletTypeSelect.value = openWalletPref
     updateWalletType()
   }
@@ -575,6 +591,14 @@ Template.appAddressOpen.events({
     setTimeout(() => { refreshLedger() }, 1000)
   },
   'change #walletType': () => {
+    updateWalletType()
+  },
+  'click .wallet-type-tab': (event) => {
+    event.preventDefault()
+    const walletType = event.currentTarget.getAttribute('data-wallet-type')
+    const walletTypeSelect = document.getElementById('walletType')
+    if (!walletTypeSelect || !walletType) return
+    walletTypeSelect.value = walletType
     updateWalletType()
   },
   'input #walletCode': () => {

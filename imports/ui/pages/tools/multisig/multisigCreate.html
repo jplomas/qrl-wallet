@@ -47,25 +47,21 @@
 </dialog>
 
   <div id="generateTransactionArea">
-    <p style="word-break: break-all;"><strong>Creator:</strong> {{ creator }}</p>
+    <p class="mb-4 break-all text-sm"><strong>Creator:</strong> {{ creator }}</p>
     <div class="grid gap-4 md:grid-cols-2">
       <div class="">
         <div id="transferRecipients">
           <div>
-            <div class="space-y-2">
-              <label>Signatory</label>
-              <div
-                class="text-center input"
-                id="amountFields"
-                style="width: 100%; margin-bottom: 10px;"
-              >
+            <div class="field">
+              <label class="fieldset-legend">Signatory</label>
+              <div class="grid gap-2 md:grid-cols-[1fr_170px]">
                 <input
                   type="text"
                   id="to_1"
                   name="to[]"
                   placeholder="Address"
                   autocomplete="off"
-                  style="width: 55%;"
+                  class="input input-bordered w-full bg-base-100"
                 />
                 <input
                   type="text"
@@ -73,7 +69,7 @@
                   name="amounts[]"
                   autocomplete="off"
                   placeholder="Weight"
-                  style="width: 30%;"
+                  class="input input-bordered w-full bg-base-100"
                 />
               </div>
             </div>
@@ -83,7 +79,8 @@
         <div class="space-y-2">
           <button
             id="addTransferRecipient"
-            class="btn btn-sm"
+            type="button"
+            class="btn btn-secondary btn-sm"
             style="width: 100%"
           >
             <span aria-hidden="true">＋</span>
@@ -93,45 +90,39 @@
       </div>
       <div class="">
         <div class="space-y-4">
-        <div class="space-y-2">
-          <label>Threshold to spend</label>
-          <div class="text-center input">
-            <input
-              type="text"
-              id="threshold"
-              name="threshold"
-              placeholder="Threshold"
-              autocomplete="off"
-              style="width: 100%;"
-            />
-          </div>
-        </div>
-        <div class="space-y-2">
-          <label>Fee (In Quanta)</label>
-          <div class="text-center input">
-            <input
-              type="text"
-              id="fee"
-              value="0.1"
-              autocomplete="off"
-              style="width: 100%;"
-            />
-          </div>
-        </div>
-        <div class="space-y-2">
-          <label>OTS Key Index</label>
-          <div class="text-center input">
-            <input
-              type="text"
-              id="otsKey"
-              placeholder="0"
-              value="{{ otsKeyEstimate }}"
-              autocomplete="off"
-              {{ledgerWalletDisabled}}
-              style="width: 100%;"
-            />
-          </div>
-        </div>
+        <fieldset class="fieldset w-full field">
+          <legend class="fieldset-legend">Threshold to spend</legend>
+          <input
+            type="text"
+            id="threshold"
+            name="threshold"
+            placeholder="Threshold"
+            autocomplete="off"
+            class="input input-bordered w-full bg-base-100"
+          />
+        </fieldset>
+        <fieldset class="fieldset w-full field">
+          <legend class="fieldset-legend">Fee (In Quanta)</legend>
+          <input
+            type="text"
+            id="fee"
+            value="0.1"
+            autocomplete="off"
+            class="input input-bordered w-full bg-base-100"
+          />
+        </fieldset>
+        <fieldset class="fieldset w-full field">
+          <legend class="fieldset-legend">OTS Key Index</legend>
+          <input
+            type="text"
+            id="otsKey"
+            placeholder="0"
+            value="{{ otsKeyEstimate }}"
+            autocomplete="off"
+            {{ledgerWalletDisabled}}
+            class="input input-bordered w-full bg-base-100"
+          />
+        </fieldset>
 
         <div class="space-y-2">
           <div class="alert alert-warning gap-3" style="display: inline-flex;"> <div class="">
@@ -167,9 +158,12 @@
           <div class="text-center">
             <button
               id="generateTransaction"
-              class="btn btn-lg btn-error"
+              class="btn btn-md btn-success gap-2"
               style="width: 100%"
             >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
               Confirm
             </button>
           </div>
@@ -231,9 +225,12 @@
       <div class="text-center">
         <button
           id="confirmTransaction"
-          class="btn btn-lg btn-error"
+          class="btn btn-md btn-success gap-2"
           style="width: 100%"
         >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
           {{#if isSeedWallet}}
           Click to Send
           {{else}}

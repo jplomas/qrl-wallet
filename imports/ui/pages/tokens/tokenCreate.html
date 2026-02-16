@@ -105,106 +105,109 @@
   <form method="dialog" class="modal-backdrop"><button>close</button></form>
 </dialog>
 
-<h4 class="text-lg font-semibold pageHeader">
-  <i class="tags"></i>
-  <div class="">
-    Create Token
+<div class="flex items-center gap-3 mb-6">
+  <div class="bg-primary/20 p-3 rounded-lg">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.5 0-2.5.8-2.5 2s1 2 2.5 2 2.5.8 2.5 2-1 2-2.5 2m0-10v10m8-5a8 8 0 11-16 0 8 8 0 0116 0z" />
+    </svg>
   </div>
-</h4>
+  <h1 class="text-2xl font-bold text-base-content">Create Token</h1>
+</div>
 
-<div class="rounded-xl border border-base-300 bg-base-100 p-4 text-left pageSegment" id="tokenCreateForm">
+<div class="card-gradient text-left pageSegment" id="tokenCreateForm">
+  <div class="card-body">
+    <form id="generateTokenForm" class="space-y-6">
+      <div class="grid gap-3">
+        <div class="rounded-lg border border-base-300/80 bg-base-100/60 p-3">
+          <p class="text-xs uppercase tracking-wide text-base-content/60">From Address</p>
+          <p id="transferFormFromAddress" class="break-all font-mono text-sm text-base-content">{{transferFrom.address}}</p>
+        </div>
+        <div class="rounded-lg border border-base-300/80 bg-base-100/60 p-3">
+          <p class="text-xs uppercase tracking-wide text-base-content/60">Quanta Balance</p>
+          <p class="text-sm font-semibold text-base-content">{{transferFrom.balance}}</p>
+        </div>
+      </div>
 
+      <div class="divider text-sm font-semibold">Token Details</div>
 
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Owner Address</legend>
+        <input type="text" id="owner" autocomplete="off" class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-  <form id="generateTokenForm" class="space-y-4">
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Token Symbol</legend>
+        <input type="text" id="symbol" placeholder="eg: TST, QRL, etc" autocomplete="off" class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <h4 class="text-lg font-semibold dividing">Token Creator</h4>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Token Name</legend>
+        <input type="text" id="name" autocomplete="off" class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <h4 id="transferFormFromAddress" class="breakable"><a class="badge badge-outline purple">From Address</a> {{transferFrom.address}}</h4>
-    <h4 class="breakable"><a class="badge badge-outline yellow">Quanta Balance</a> {{transferFrom.balance}}</h4>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Decimals</legend>
+        <input type="text" id="decimals" value="10" autocomplete="off" class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <h4 class="text-lg font-semibold divider">
-      <i class="tags"></i>
-      Token Details
-    </h4>
+      <div class="divider text-sm font-semibold">Initial Token Holders</div>
 
-    <div class="space-y-2">
-      <label>Owner Address</label>
-      <input type="text" id="owner" autocomplete="off">
-    </div>
-    <div class="space-y-2">
-      <label>Token Symbol</label>
-      <input type="text" id="symbol" placeholder="eg: TST, QRL, etc" autocomplete="off">
-    </div>
-    <div class="space-y-2">
-      <label>Token Name</label>
-      <input type="text" id="name" autocomplete="off">
-    </div>
-    <div class="space-y-2">
-      <label>Decimals</label>
-      <input type="text" id="decimals" value="10" autocomplete="off">
-    </div>
-    
-    
-    <h4 class="text-lg font-semibold divider">
-      <i class="users"></i>
-      Initial Token Holders
-    </h4>
-
-    <div id="tokenHolders">
-      <div class="space-y-2">
-        <label>Holder Balance</label>
-        <div class="grid gap-3 md:grid-cols-3">
-          <div class="space-y-2">
-            <input type="text" id="initialBalancesAddress_1" name="initialBalancesAddress[]" placeholder="Token Holder QRL Address" autocomplete="off">
-          </div>
-          <div class="space-y-2">
-            <input type="text" id="initialBalancesAddressAmount_1" name="initialBalancesAddressAmount[]" placeholder="Token Balance" autocomplete="off">
-          </div>
-          <div class="space-y-2">
-            <button class="btn btn-error removeTokenHolder"><span aria-hidden="true">−</span></button>
+      <div id="tokenHolders" class="space-y-3">
+        <div class="token-holder-entry rounded-lg border border-base-300/80 bg-base-100/60 p-3">
+          <fieldset class="fieldset w-full">
+            <legend class="fieldset-legend">Holder Address</legend>
+            <input type="text" id="initialBalancesAddress_1" name="initialBalancesAddress[]" placeholder="Token Holder QRL Address" autocomplete="off" class="input input-bordered w-full bg-base-100">
+          </fieldset>
+          <fieldset class="fieldset w-full">
+            <legend class="fieldset-legend">Token Balance</legend>
+            <input type="text" id="initialBalancesAddressAmount_1" name="initialBalancesAddressAmount[]" placeholder="Token Balance" autocomplete="off" class="input input-bordered w-full bg-base-100">
+          </fieldset>
+          <div class="mt-3 flex justify-end">
+            <button class="btn btn-error btn-sm gap-2 removeTokenHolder" type="button">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7v10m6-10v10M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 4h4a1 1 0 011 1v2H9V5a1 1 0 011-1z" />
+              </svg>
+              Remove
+            </button>
           </div>
         </div>
       </div>
-    </div>
 
-    <button id="addTokenHolder" class="btn btn-success">
-      <span aria-hidden="true">＋</span>
-      Add Another Holder
-    </button>
+      <button id="addTokenHolder" class="btn btn-secondary btn-sm gap-2" type="button">
+        <span aria-hidden="true">＋</span>
+        Add Another Holder
+      </button>
 
-    <h4 class="text-lg font-semibold divider">
-      <i class="file"></i>
-      Transaction Details
-    </h4>
+      <div class="divider text-sm font-semibold">Transaction Details</div>
 
-    <div class="space-y-2">
-      <label>Token Creation Fee (In Quanta)</label>
-      <input type="text" id="fee" value="100" autocomplete="off" disabled>
-    </div>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">Token Creation Fee (In Quanta)</legend>
+        <input type="text" id="fee" value="100" autocomplete="off" disabled class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <div class="space-y-2">
-      <label>OTS Key Index</label>
-      <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off">
-    </div>
+      <fieldset class="fieldset w-full">
+        <legend class="fieldset-legend">OTS Key Index</legend>
+        <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" class="input input-bordered w-full bg-base-100">
+      </fieldset>
 
-    <div class="space-y-2">
-      <div class="alert alert-warning gap-3" style="display: inline-flex;"> <div class="">
+      <div class="alert alert-warning gap-3">
+        <div>
           <div class="text-lg font-semibold">
             OTS Key Index Warning
           </div>
           <p>The <strong>OTS (One Time Signature)</strong> Key Index in the field above is estimated based on data provided by the QRL node you're connected to. You should <b>never</b> re-use the same OTS Key for more than 1 transaction. If you are unsure, it is safest to write down all used OTS Key Indexes, and store them in a safe place.</p>
         </div>
       </div>
-    </div>
 
-    <div class="space-y-2">
-      <button id="createToken" class="btn btn-lg btn-error" style="float: left;">Create Token</button>
-      <br />
-    </div>
+      <div class="pt-2">
+        <button id="createToken" class="btn btn-md btn-success gap-2" type="submit">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Create Token
+        </button>
+      </div>
 
-    <div class="space-y-2">
-      <br />
       <div id="generating" style="display: none;" class="alert gap-3">
         <span class="loading loading-spinner loading-md"></span>
         <div class="">
@@ -214,12 +217,11 @@
           <p>Generating your new token transaction...</p>
         </div>
       </div>
-    </div>   
-
-  </form>
+    </form>
+  </div>
 </div>
 
-<div id="tokenCreationFailed" class="rounded-xl border border-base-300 bg-base-100 p-4 pageSegment" style="display: none;">
+<div id="tokenCreationFailed" class="card-gradient p-4 pageSegment" style="display: none;">
   <h4>Token Creation Failed</h4>
   <p style="word-wrap: break-word; word-break: break-all;">Error: {{tokenCreationError}}</p>
 </div>

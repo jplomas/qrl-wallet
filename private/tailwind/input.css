@@ -64,13 +64,15 @@
     background-color: color-mix(in oklab, var(--color-base-200) 94%, transparent);
   }
 
-  #sendReceiveTabs .tab {
+  #sendReceiveTabs .tab,
+  #walletTypeTabs .tab {
     font-weight: 500;
     letter-spacing: 0.01em;
     transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   }
 
-  #sendReceiveTabs .tab.tab-active {
+  #sendReceiveTabs .tab.tab-active,
+  #walletTypeTabs .tab.tab-active {
     background: var(--color-primary);
     color: var(--color-primary-content);
     border: 1px solid var(--color-primary);
@@ -79,7 +81,8 @@
     transform: translateY(-1px);
   }
 
-  #sendReceiveTabs .tab:not(.tab-active):hover {
+  #sendReceiveTabs .tab:not(.tab-active):hover,
+  #walletTypeTabs .tab:not(.tab-active):hover {
     background: color-mix(in oklab, var(--color-base-300) 85%, transparent);
   }
 
@@ -212,7 +215,7 @@
 
   @media (min-width: 768px) {
     .site-footer-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     }
   }
 
@@ -252,7 +255,10 @@
   }
 
   .site-footer-heading {
-    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 0.2rem;
+    line-height: 1;
     font-size: 0.75rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -262,7 +268,14 @@
   .site-footer-nav {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
+  }
+
+  .site-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.75rem;
   }
 
   .site-footer-link {

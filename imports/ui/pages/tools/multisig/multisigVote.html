@@ -393,7 +393,12 @@
   
               <div class="grid gap-4 grid-cols-1">
                 <div class="text-center">
-                  <button id="generateTransaction" class="btn btn-lg btn-error" style="width: 100%">Confirm</button>
+                  <button id="generateTransaction" class="btn btn-md btn-success gap-2" style="width: 100%">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Confirm
+                  </button>
                 </div>
               </div>
   
@@ -465,7 +470,10 @@
   
             <div class="grid gap-4 grid-cols-1">
               <div class="text-center">
-                <button id="confirmTransaction" class="btn btn-lg btn-error"  style="width: 100%">
+                <button id="confirmTransaction" class="btn btn-md btn-success gap-2"  style="width: 100%">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
                   {{#if isSeedWallet}}
                     Click to Send
                   {{else}}

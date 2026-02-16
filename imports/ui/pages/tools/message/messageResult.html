@@ -1,14 +1,15 @@
 <template name="appMessageResult">
 
-<h2 class="text-lg font-semibold pageHeader">
-  <i class="envelope"></i>
-  <div class="">
-    Message Creation Result
+<div class="flex items-center gap-3 mb-6">
+  <div class="bg-primary/20 p-3 rounded-lg">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8m-8 4h5m4 7H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l4.414 4.414A1 1 0 0118 8.414V19a2 2 0 01-2 2z" />
+    </svg>
   </div>
-</h2>
+  <h1 class="text-2xl font-bold text-base-content">Message Creation Result</h1>
+</div>
 
-
-<div id="transactionComplete" class="rounded-xl border border-base-300 bg-base-100 p-4 pageSegment">
+<div id="transactionComplete" class="card-gradient p-4 pageSegment">
 
   <h4 class="text-lg font-semibold divider">
     <i class="envelope"></i>
@@ -67,7 +68,7 @@
   <div class="grid gap-4 grid-cols-1">
     <div class="">
       <button class="btn btn-sm jsonclick">Raw Transaction Details <span aria-hidden="true">▾</span></button>
-      <div class="rounded-xl border border-base-300 bg-base-100 p-4 raised jsonbox json unbreakable" style="display: none"></div>
+      <div class="rounded-xl border border-base-300 bg-base-100/80 p-4 raised jsonbox json unbreakable" style="display: none"></div>
     </div>
   </div>
   

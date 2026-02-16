@@ -18,7 +18,7 @@ async function callGithubAPI(name) {
       x.enableTransaction = true
       x.apiID = res.id
       Session.set('githubOperation', x)
-      $('#lookupInProgress').removeClass('active')
+      $('#lookupInProgress').addClass('hidden')
       $('#lookupID').attr('disabled', false)
     },
     error: (res) => {
@@ -26,7 +26,7 @@ async function callGithubAPI(name) {
       const x = Session.get('githubOperation')
       x.apiID = `Github user ${name} not found`
       Session.set('githubOperation', x)
-      $('#lookupInProgress').removeClass('active')
+      $('#lookupInProgress').addClass('hidden')
       $('#lookupID').attr('disabled', false)
     },
   })
@@ -224,7 +224,7 @@ Template.appGithubCreate.events({
   'click #lookupID': (event) => {
     event.preventDefault()
     event.stopPropagation()
-    $('#lookupInProgress').addClass('active')
+    $('#lookupInProgress').removeClass('hidden')
     $('#lookupID').attr('disabled', true)
     const x = Session.get('githubOperation')
     x.githubId = document.getElementById('gh_username').value

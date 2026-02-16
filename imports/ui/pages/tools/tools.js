@@ -75,17 +75,83 @@ const CATEGORY_LABELS = {
   advanced: 'Advanced',
 }
 
+const CATEGORY_STYLES = {
+  asset: {
+    iconWrapClass: 'border-primary/25 bg-primary/10 text-primary',
+    iconPath: 'M3 7.5l9-4.5 9 4.5-9 4.5-9-4.5zm0 4.5l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5',
+  },
+  identity: {
+    iconWrapClass: 'border-secondary/25 bg-secondary/10 text-secondary',
+    iconPath: 'M12 11a3 3 0 100-6 3 3 0 000 6zm-7.5 8.25a7.5 7.5 0 0115 0',
+  },
+  advanced: {
+    iconWrapClass: 'border-accent/25 bg-accent/10 text-accent',
+    iconPath: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
+  },
+}
+
 function normalize(value) {
   return String(value || '').toLowerCase().trim()
 }
 
-function renderToolCard(tool) {
-  return h('a', { href: tool.href, class: 'card-gradient block hover:shadow-accent' }, [
-    h('div', { class: 'flex items-start justify-between gap-2' }, [
-      h('h3', { class: 'text-lg font-semibold text-base-content' }, tool.title),
-      h('span', { class: 'badge badge-outline badge-sm' }, tool.badge),
+function renderToolIcon(tool) {
+  const style = CATEGORY_STYLES[tool.category] || CATEGORY_STYLES.advanced
+  return h('div', { class: `inline-flex h-11 w-11 items-center justify-center rounded-box border ${style.iconWrapClass}` }, [
+    h('svg', {
+      xmlns: 'http://www.w3.org/2000/svg',
+      class: 'h-5 w-5',
+      fill: 'none',
+      viewBox: '0 0 24 24',
+      stroke: 'currentColor',
+      'stroke-width': '2',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'aria-hidden': 'true',
+    }, [
+      h('path', { d: style.iconPath }),
     ]),
-    h('p', { class: 'text-sm text-base-content/70 mt-1' }, tool.description),
+  ])
+}
+
+function renderToolCard(tool) {
+  const categoryLabel = CATEGORY_LABELS[tool.category] || tool.category
+  const showBadge = tool.badge && normalize(tool.badge) !== normalize(categoryLabel)
+
+  return h('a', {
+    href: tool.href,
+    class: 'group card bg-base-200 border border-base-300 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/55 hover:shadow-lg no-underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50',
+  }, [
+    h('div', { class: 'card-body p-5 gap-4' }, [
+      h('div', { class: 'flex items-start justify-between gap-3' }, [
+        h('div', { class: 'flex items-start gap-3 min-w-0' }, [
+          renderToolIcon(tool),
+          h('div', { class: 'min-w-0' }, [
+            h('h3', { class: 'card-title text-lg text-base-content leading-tight' }, tool.title),
+            h('p', { class: 'text-xs uppercase tracking-[0.16em] text-base-content/60 mt-1' }, categoryLabel),
+          ]),
+        ]),
+        showBadge ? h('span', { class: 'badge badge-outline badge-sm shrink-0' }, tool.badge) : null,
+      ]),
+      h('p', { class: 'text-sm text-base-content/70 leading-relaxed min-h-11' }, tool.description),
+      h('div', { class: 'card-actions justify-end pt-1' }, [
+        h('span', { class: 'btn btn-sm btn-ghost border border-base-300 pointer-events-none group-hover:border-primary/40' }, [
+          'Open',
+          h('svg', {
+            xmlns: 'http://www.w3.org/2000/svg',
+            class: 'h-4 w-4',
+            fill: 'none',
+            viewBox: '0 0 24 24',
+            stroke: 'currentColor',
+            'stroke-width': '2',
+            'stroke-linecap': 'round',
+            'stroke-linejoin': 'round',
+            'aria-hidden': 'true',
+          }, [
+            h('path', { d: 'M5 12h14M13 5l7 7-7 7' }),
+          ]),
+        ]),
+      ]),
+    ]),
   ])
 }
 
@@ -148,7 +214,7 @@ function createToolsVueApp(tools) {
           ]),
         ]),
         h('p', { class: 'text-sm text-base-content/70 px-1' }, countLabel),
-        h('div', { class: 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4' }, gridCards),
+        h('div', { class: 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5' }, gridCards),
         this.filteredTools.length === 0
           ? h('div', { class: 'alert' }, [
             h('span', {}, 'No tools match the current filter.'),

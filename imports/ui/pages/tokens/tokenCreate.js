@@ -314,18 +314,22 @@ Template.appTokenCreate.events({
     countRecipientsForValidation += 1
 
     const newTokenHolderHtml = `
-      <div class="field">
-        <label>Holder Balance</label>
-        <div class="grid gap-3 md:grid-cols-10">
-          <div class="md:col-span-6">
-            <input type="text" id="initialBalancesAddress_${countRecipientsForValidation}" name="initialBalancesAddress[]" placeholder="Token Holder QRL Address">
-          </div>
-          <div class="md:col-span-3">
-            <input type="text" id="initialBalancesAddressAmount_${countRecipientsForValidation}" name="initialBalancesAddressAmount[]" placeholder="Token Balance">
-          </div>
-          <div class="md:col-span-1">
-            <button class="btn btn-error w-full removeTokenHolder"><span aria-hidden="true">−</span></button>
-          </div>
+      <div class="token-holder-entry rounded-lg border border-base-300/80 bg-base-100/60 p-3">
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Holder Address</legend>
+          <input type="text" id="initialBalancesAddress_${countRecipientsForValidation}" name="initialBalancesAddress[]" placeholder="Token Holder QRL Address" autocomplete="off" class="input input-bordered w-full bg-base-100">
+        </fieldset>
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Token Balance</legend>
+          <input type="text" id="initialBalancesAddressAmount_${countRecipientsForValidation}" name="initialBalancesAddressAmount[]" placeholder="Token Balance" autocomplete="off" class="input input-bordered w-full bg-base-100">
+        </fieldset>
+        <div class="mt-3 flex justify-end">
+          <button class="btn btn-error btn-sm gap-2 removeTokenHolder" type="button">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7v10m6-10v10M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M10 4h4a1 1 0 011 1v2H9V5a1 1 0 011-1z" />
+            </svg>
+            Remove
+          </button>
         </div>
       </div>
     `
@@ -344,8 +348,7 @@ Template.appTokenCreate.events({
     countRecipientsForValidation -= 1
 
     // Remove the token holder
-    $(event.currentTarget).parent().parent().parent()
-      .remove()
+    $(event.currentTarget).closest('.token-holder-entry').remove()
 
     // Initialise Form Validation
     initialiseFormValidation()

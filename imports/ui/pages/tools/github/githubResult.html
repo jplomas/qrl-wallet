@@ -1,14 +1,13 @@
 <template name="appGithubResult">
 
-<h2 class="text-lg font-semibold pageHeader">
-  <i class=""><img src="/img/github-w.svg"></i>
-  <div class="">
-    Github Message Result
+<div class="flex items-center gap-3 mb-6">
+  <div class="bg-primary/20 p-3 rounded-lg">
+    <img src="/img/github-w.svg" class="h-6 w-6" alt="Github">
   </div>
-</h2>
+  <h1 class="text-2xl font-bold text-base-content">Github Message Result</h1>
+</div>
 
-
-<div id="transactionComplete" class="rounded-xl border border-base-300 bg-base-100 p-4 pageSegment">
+<div id="transactionComplete" class="card-gradient p-4 pageSegment">
 
   <h4 class="text-lg font-semibold divider">
     <i class=""><img src="/img/github.svg"></i>
@@ -78,7 +77,7 @@
   <div class="grid gap-4 grid-cols-1">
     <div class="">
       <button class="btn btn-sm jsonclick">Raw Transaction Details <span aria-hidden="true">▾</span></button>
-      <div class="rounded-xl border border-base-300 bg-base-100 p-4 raised jsonbox json unbreakable" style="display: none"></div>
+      <div class="rounded-xl border border-base-300 bg-base-100/80 p-4 raised jsonbox json unbreakable" style="display: none"></div>
     </div>
   </div>
   

@@ -48,14 +48,37 @@ function patchLedgerDevices() {
 
 function patchElectrifyQrl() {
   const electrifyRoot = path.join(projectRoot, 'node_modules', '@theqrl', 'electrify-qrl', 'lib');
+  const cliFile = path.join(projectRoot, 'node_modules', '@theqrl', 'electrify-qrl', 'bin', 'cli.js');
   const electronFile = path.join(electrifyRoot, 'electron.js');
   const appFile = path.join(electrifyRoot, 'app.js');
   const envFile = path.join(electrifyRoot, 'env.js');
   const nodejsFile = path.join(electrifyRoot, 'plugins', 'nodejs.js');
 
-  if (!fs.existsSync(electronFile) || !fs.existsSync(appFile) || !fs.existsSync(envFile) || !fs.existsSync(nodejsFile)) {
+  if (
+    !fs.existsSync(cliFile)
+    || !fs.existsSync(electronFile)
+    || !fs.existsSync(appFile)
+    || !fs.existsSync(envFile)
+    || !fs.existsSync(nodejsFile)
+  ) {
     console.log('@theqrl/electrify-qrl not found, skipping patch');
     return;
+  }
+
+  let cliSource = fs.readFileSync(cliFile, 'utf8');
+  const oldElectronResolveLine = "  var electron_path = require('electron');";
+  const newElectronResolveBlock = `  var electron_path;
+  var projectElectronModule = join(electrify_dir, 'node_modules', 'electron');
+  try {
+    electron_path = require(projectElectronModule);
+  } catch (err) {
+    electron_path = require('electron');
+  }`;
+
+  if (cliSource.includes(oldElectronResolveLine)) {
+    cliSource = cliSource.replace(oldElectronResolveLine, newElectronResolveBlock);
+    fs.writeFileSync(cliFile, cliSource);
+    console.log('Patched @theqrl/electrify-qrl CLI to prefer project Electron runtime');
   }
 
   let electronSource = fs.readFileSync(electronFile, 'utf8');

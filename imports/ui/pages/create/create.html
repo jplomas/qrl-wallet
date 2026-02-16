@@ -15,15 +15,15 @@
   <div class="card-body">
     <div class="grid gap-4 grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Left Column: Form -->
-      <div class="space-y-6">
+      <div class="space-y-3">
         <!-- Passphrase Fields -->
-        <div id="passphraseArea" class="space-y-4">
-          <fieldset class="fieldset w-full">
+        <div id="passphraseArea" class="space-y-0">
+          <fieldset class="fieldset w-full mb-0">
             <legend class="fieldset-legend">Passphrase</legend>
             <input type="password" id="passphrase" class="input w-full" placeholder="Enter passphrase" autocomplete="new-password" />
           </fieldset>
 
-          <fieldset class="fieldset w-full">
+          <fieldset class="fieldset w-full mb-0">
             <legend class="fieldset-legend">Confirm Passphrase</legend>
             <input type="password" id="passphraseConfirm" class="input w-full" placeholder="Confirm passphrase" autocomplete="new-password" />
           </fieldset>
@@ -41,7 +41,7 @@
         </div>
 
         <!-- XMSS Tree Height Select -->
-        <fieldset class="fieldset w-full">
+        <fieldset class="fieldset w-full mb-0">
           <legend class="fieldset-legend">XMSS Tree Height</legend>
           <select id="xmssHeight" class="select w-full bg-base-100">
             <option value="8">Tree Height: 8 — 256 signatures</option>
@@ -54,7 +54,7 @@
         </fieldset>
 
         <!-- Hash Function Select -->
-        <fieldset class="fieldset w-full">
+        <fieldset class="fieldset w-full mb-0">
           <legend class="fieldset-legend">Hash Function</legend>
           <select id="hashFunction" class="select w-full bg-base-100">
             <option value="SHAKE_128" selected>SHAKE_128 (Default)</option>
@@ -81,8 +81,8 @@
     </div>
 
     <!-- Action Button -->
-    <div class="card-actions justify-start mt-8">
-      <button id="generate" class="btn btn-primary btn-lg gap-2">
+    <div class="card-actions justify-start mt-2">
+      <button id="generate" class="btn btn-primary btn-md gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
