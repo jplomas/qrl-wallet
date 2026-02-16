@@ -193,6 +193,40 @@ function patchElectrifyQrl() {
     console.log('Patched @theqrl/electrify-qrl Meteor 3 server_modules handling');
   }
 
+  const oldDevEnsureDepsSpawn = `    spawn(npm_cmd, ['i', '--save', join(__dirname, '..')], {
+      cwd: this.$.env.app.root,
+      stdio: this.$.env.stdio
+    }).on('exit', done);`;
+  const newDevEnsureDepsSpawn = `    spawn(npm_cmd, ['i', '--save', join(__dirname, '..')], {
+      cwd: this.$.env.app.root,
+      stdio: this.$.env.stdio,
+      shell: this.$.env.os.is_windows
+    }).on('exit', done);`;
+
+  if (appSource.includes(oldDevEnsureDepsSpawn)) {
+    appSource = appSource.replace(oldDevEnsureDepsSpawn, newDevEnsureDepsSpawn);
+    fs.writeFileSync(appFile, appSource);
+    appSource = fs.readFileSync(appFile, 'utf8');
+    console.log('Patched @theqrl/electrify-qrl ensure_deps spawn for Windows shell (dev mode)');
+  }
+
+  const oldProdEnsureDepsSpawn = `    spawn(npm_cmd, ['i'], {
+      cwd: this.$.env.app.root,
+      stdio: this.$.env.stdio
+    }).on('exit', done);`;
+  const newProdEnsureDepsSpawn = `    spawn(npm_cmd, ['i'], {
+      cwd: this.$.env.app.root,
+      stdio: this.$.env.stdio,
+      shell: this.$.env.os.is_windows
+    }).on('exit', done);`;
+
+  if (appSource.includes(oldProdEnsureDepsSpawn)) {
+    appSource = appSource.replace(oldProdEnsureDepsSpawn, newProdEnsureDepsSpawn);
+    fs.writeFileSync(appFile, appSource);
+    appSource = fs.readFileSync(appFile, 'utf8');
+    console.log('Patched @theqrl/electrify-qrl ensure_deps spawn for Windows shell');
+  }
+
   const oldBundleExitHook = ").on('exit', function(){";
   const newBundleExitHook = ").on('exit', function(code){";
   if (appSource.includes(oldBundleExitHook)) {

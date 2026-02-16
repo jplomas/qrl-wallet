@@ -109,6 +109,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Apply compatibility patches
+        run: node .scripts/patch-ledger-exports.js
+
       - name: Build CSS
         run: npm run build:css
 
