@@ -258,8 +258,8 @@ function activateTab(tabName, scope) {
   $items.each(function () {
     const $item = $(this)
     if ($item.closest('.tabs').length > 0 || $item.parent('#sendReceiveTabs').length > 0) {
-      $item.siblings('[data-tab]').removeClass('active')
-      $item.addClass('active')
+      $item.siblings('[data-tab]').removeClass('active tab-active')
+      $item.addClass('active tab-active')
     }
   })
 

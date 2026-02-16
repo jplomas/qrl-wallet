@@ -85,8 +85,16 @@ async function getLedgerRetrieveSignature(request, callback) {
 }
 
 function enableSendButton() {
+  const xmssDetails = getXMSSDetails() || {}
+  const confirmLabel =
+    xmssDetails.walletType === 'ledger' ? 'Sign with Ledger' : 'Click to Send'
+  const confirmIcon = `
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+    </svg>
+  `
   $('#confirmTransaction').attr('disabled', false)
-  $('#confirmTransaction').html('Click to Send')
+  $('#confirmTransaction').html(`${confirmIcon}${confirmLabel}`)
 }
 
 function generateTransaction() {
@@ -1042,8 +1050,8 @@ Template.appTransfer.events({
       )
       .change()
     window.walletUi.changeTab('send')
-    $('#sendReceiveTabs > a').first().addClass('active')
-    $('#sendReceiveTabs > a').last().removeClass('active')
+    $('#sendReceiveTabs [data-tab]').removeClass('active tab-active')
+    $('#sendReceiveTabs [data-tab="send"]').addClass('active tab-active')
   },
   'click .transactionRecord': (event) => {
     event.preventDefault()
@@ -1087,7 +1095,7 @@ Template.appTransfer.events({
   },
   'click #confirmTransaction': () => {
     $('#confirmTransaction').attr('disabled', true)
-    $('#confirmTransaction').html('<span class="loading loading-spinner loading-sm"></span>')
+    $('#confirmTransaction').html('<span class="loading loading-spinner loading-sm"></span> Sending...')
     setTimeout(() => {
       confirmTransaction()
     }, 200)
@@ -1141,12 +1149,17 @@ Template.appTransfer.events({
 
       const newTransferRecipient = `
         <div>
-          <div class="field">
-            <label>Additional Recipient</label>
-            <div class="grid gap-2 md:grid-cols-10" id="amountFields" style="width: 100%; margin-bottom: 10px;">
-              <input type="text" id="to_${nextRecipientId}" name="to[]" placeholder="Address" style="width: 55%;">
-              <input type="text" id="amounts_${nextRecipientId}" name="amounts[]" placeholder="Amount" style="width: 30%;">
-              <button class="btn btn-error btn-sm removeTransferRecipient" style="width: 10%"><span aria-hidden="true">−</span></button>
+          <div class="field mt-4">
+            <label class="fieldset-legend">Additional Recipient</label>
+            <div class="grid gap-2 md:grid-cols-[1fr_170px_auto]">
+              <input type="text" id="to_${nextRecipientId}" name="to[]" placeholder="Address" class="input input-bordered w-full bg-base-100">
+              <input type="text" id="amounts_${nextRecipientId}" name="amounts[]" placeholder="Amount" class="input input-bordered w-full bg-base-100">
+              <button type="button" class="btn btn-error btn-sm removeTransferRecipient gap-1" aria-label="Remove recipient">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-1-3H10a1 1 0 00-1 1v2h6V5a1 1 0 00-1-1z" />
+                </svg>
+                Remove
+              </button>
             </div>
           </div>
         </div>

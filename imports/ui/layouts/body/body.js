@@ -60,6 +60,40 @@ const handleNetworkChange = (value) => {
   Session.set('cancellingNetwork', false)
 }
 
+const buildOtsTrackerData = () => {
+  const otsBitfield = Session.get('otsBitfield')
+  if (!otsBitfield || typeof otsBitfield !== 'object') {
+    return { error: 'No OTS data available yet. Please wait for wallet state to refresh.' }
+  }
+
+  const sortedKeys = Object.keys(otsBitfield).sort(
+    (a, b) => parseInt(a, 10) - parseInt(b, 10)
+  )
+  if (sortedKeys.length === 0) {
+    return { error: 'No OTS data available yet. Please wait for wallet state to refresh.' }
+  }
+
+  let usedCount = 0
+  const cells = sortedKeys.map((key) => {
+    const isUsed = Number(otsBitfield[key]) === 1
+    if (isUsed) {
+      usedCount += 1
+    }
+    return {
+      key,
+      isUsed,
+    }
+  })
+
+  return {
+    cells,
+    totalCount: sortedKeys.length,
+    usedCount,
+    remainingCount: sortedKeys.length - usedCount,
+    nextKey: Session.get('otsKeyEstimate'),
+  }
+}
+
 // TODO: refactor this -- duplicate code used in ../mobile/mobile.js
 // Set session state based on selected network node.
 const updateNetwork = (selectedNetwork) => {
@@ -180,6 +214,14 @@ Template.appBody.onDestroyed(function onDestroyed() {
 })
 
 Template.appBody.events({
+  'click #openOtsTracker': (event) => {
+    event.preventDefault()
+    Session.set('otsTrackerData', buildOtsTrackerData())
+    const otsModal = document.getElementById('otsTrackerModal')
+    if (otsModal) {
+      otsModal.showModal()
+    }
+  },
   'click #saveCustomNode': () => {
     // Save custom node settings
     const customNodeName = document.getElementById('customNodeName').value
@@ -310,6 +352,9 @@ Template.appBody.helpers({
     }
     return Session.get('otsKeysRemaining')
 
+  },
+  otsTrackerData() {
+    return Session.get('otsTrackerData') || buildOtsTrackerData()
   },
   balanceSymbol() {
     return Session.get('balanceSymbol')

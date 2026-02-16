@@ -328,26 +328,28 @@
 
 {{> recoverySeedModal }}
 
-<!-- This has now been moved to body page -->
-<!-- <h3 class="text-lg font-semibold pageHeader">
-  <div id="walletAddress" class="wordBreak">
-    {{transferFrom.address}}
+<!-- Page Header -->
+<div class="flex items-center gap-3 mb-6">
+  <div class="bg-primary/20 p-3 rounded-lg">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+    </svg>
   </div>
-</h3>
-<br /><br /> -->
+  <h1 class="text-2xl font-bold text-base-content">Transfer</h1>
+</div>
 
 <div class="text-left" id="transferForm">
   <div class="grid gap-4 md:grid-cols-2">
     <div class="">
 
       <!-- Send/Receive Section -->
-      <div id="sendReceiveTabs" class="">
-        <a class="" data-tab="send">Send</a>
-        <a class="" data-tab="receive">Receive</a>
-        <a class="" data-tab="tokenBalances">Tokens</a>
-        <a class="" data-tab="nftBalances">NFTs</a>
+      <div id="sendReceiveTabs" class="tabs tabs-boxed w-full bg-base-200/70 p-1">
+        <a class="tab tab-active flex-1" data-tab="send">Send</a>
+        <a class="tab flex-1" data-tab="receive">Receive</a>
+        <a class="tab flex-1" data-tab="tokenBalances">Tokens</a>
+        <a class="tab flex-1" data-tab="nftBalances">NFTs</a>
       </div>
-      <div class="rounded-xl border border-base-300 bg-base-100 p-4 block" data-tab="send">
+      <div class="card-gradient transfer-tab-panel p-4 block" data-tab="send">
 
         <!-- Generate Transaction Area -->
         <div id="generateTransactionArea">
@@ -355,32 +357,25 @@
 
             <div id="transferRecipients">
               <div>
-                <div class="space-y-2">
-                  <label>
-                    <p style="text-align:left;">
-                      Recipient
-                      <span style="float:right;">
-                       <a id="showMessageField">Add message</a>
-                      </span>
-                  </p>
-                  </label>
-                  <input type="text" id="to_1" name="to[]" placeholder="Recipient Address" autocomplete="off">
+                <div class="space-y-2 field">
+                  <div class="flex items-center justify-between gap-3">
+                    <label class="fieldset-legend m-0">Recipient</label>
+                    <button id="showMessageField" type="button" class="link link-primary text-sm">Add message</button>
+                  </div>
+                  <input type="text" id="to_1" name="to[]" placeholder="Recipient Address" autocomplete="off" class="input input-bordered w-full bg-base-100" />
                 </div>
-                <div class="space-y-2" style="display: none;" id="messageField">
-                  <label>                    <p style="text-align:left;">
-                    Message
-                    <span style="float:right;">
-                     <a id="clearMessageField">Remove message</a>
-                    </span>
-                </p></label>
-                  <input type="text" id="message" name="message" placeholder="Message" autocomplete="off">
+                <div class="space-y-2 field" style="display: none;" id="messageField">
+                  <div class="flex items-center justify-between gap-3">
+                    <label class="fieldset-legend m-0">Message</label>
+                    <button id="clearMessageField" type="button" class="link link-primary text-sm">Remove message</button>
+                  </div>
+                  <input type="text" id="message" name="message" placeholder="Message (max 80 bytes)" autocomplete="off" class="input input-bordered w-full bg-base-100" />
                 </div>
-                <div class="space-y-2">
-                  <label>Amount</label>
-                  <div class="text-center input"  id="amountFields" style="width: 100%; margin-bottom: 20px;">
-                    <input type="text" id="amounts_1" name="amounts[]" autocomplete="off">
-
-                    <select id="amountType" class="select w-full bg-base-100">
+                <fieldset class="fieldset w-full field">
+                  <legend class="fieldset-legend">Amount</legend>
+                  <div class="join w-full" id="amountFields">
+                    <input type="text" id="amounts_1" name="amounts[]" autocomplete="off" class="input input-bordered join-item w-full bg-base-100" />
+                    <select id="amountType" class="select select-bordered join-item bg-base-100 w-48 max-w-[48%]">
                       <option value="quanta">Quanta</option>
                       {{#each tokensHeld}}
                       {{#if heldTokenIsNFT}}
@@ -391,30 +386,28 @@
                       {{/each}}
                     </select>
                   </div>
-                  <br />
-                  <div class="badge badge-outline">Balance: {{balanceAmount}} {{balanceSymbol}}</div>
-                </div>
-                <br />
+                  <p class="label">Balance: {{balanceAmount}} {{balanceSymbol}}</p>
+                </fieldset>
               </div>
 
             </div>
 
             <!-- Additional Recipients -->
             <div class="space-y-2">
-              <button id="addTransferRecipient" class="btn btn-sm" style="width: 100%">
+              <button id="addTransferRecipient" type="button" class="btn btn-secondary btn-sm" style="width: 100%">
                 <span aria-hidden="true">＋</span>
                 Add Another Recipient
               </button>
             </div>
 
-            <div class="space-y-2">
-              <label>Fee (In Quanta)</label>
-              <input type="text" id="fee" value="0.001" autocomplete="off">
-            </div>
-            <div class="space-y-2">
-              <label>OTS Key Index</label>
-              <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" {{ledgerWalletDisabled}}>
-            </div>
+            <fieldset class="fieldset w-full field">
+              <legend class="fieldset-legend">Fee (In Quanta)</legend>
+              <input type="text" id="fee" value="0.001" autocomplete="off" class="input input-bordered w-full bg-base-100" />
+            </fieldset>
+            <fieldset class="fieldset w-full field">
+              <legend class="fieldset-legend">OTS Key Index</legend>
+              <input type="text" id="otsKey" placeholder="0" value="{{otsKeyEstimate}}" autocomplete="off" class="input input-bordered w-full bg-base-100" {{ledgerWalletDisabled}}>
+            </fieldset>
 
 
             <div class="space-y-2">
@@ -433,7 +426,12 @@
 
             <div class="grid gap-4 grid-cols-1">
               <div class="text-center">
-                <button id="generateTransaction" class="btn btn-lg btn-error" style="width: 100%">Confirm</button>
+                <button id="generateTransaction" class="btn btn-lg btn-success gap-2" style="width: 100%">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Confirm
+                </button>
               </div>
             </div>
 
@@ -455,7 +453,7 @@
         <div id="confirmTransactionArea" style="display: none;">
 
           <div class="alert gap-3 transactionRecord">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+            <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/15 text-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
               <div class="text-lg font-semibold">
                 Confirm Send
@@ -503,9 +501,12 @@
             </div>
           </div>
 
-          <div class="grid gap-4 grid-cols-1">
-            <div class="text-center">
-              <button id="confirmTransaction" class="btn btn-lg btn-error"  style="width: 100%">
+            <div class="grid gap-4 grid-cols-1">
+              <div class="text-center">
+              <button id="confirmTransaction" class="btn btn-lg btn-success gap-2"  style="width: 100%">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
                 {{#if isSeedWallet}}
                   Click to Send
                 {{else}}
@@ -531,7 +532,7 @@
         <!-- Confirm Token Transaction Area -->
         <div id="confirmTokenTransactionArea" style="display: none;">
           <div class="alert gap-3 transactionRecord">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+            <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/15 text-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
               <div class="text-lg font-semibold">
                 Confirm Send
@@ -584,7 +585,12 @@
 
           <div class="grid gap-4 grid-cols-1">
             <div class="text-center">
-              <button id="confirmTokenTransaction" class="btn btn-lg btn-error"  style="width: 100%">Click to Send</button>
+              <button id="confirmTokenTransaction" class="btn btn-lg btn-success gap-2"  style="width: 100%">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Click to Send
+              </button>
             </div>
           </div>
           
@@ -605,7 +611,7 @@
         <div id="transactionResultArea" style="display: none;">
 
           <div class="alert gap-3 transactionRecord">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+            <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/15 text-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
               <div class="text-lg font-semibold">
                 Sent
@@ -690,7 +696,7 @@
         <div id="tokenTransactionResultArea" style="display: none;">
 
           <div class="alert gap-3 transactionRecord">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+            <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/15 text-primary"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
               <div class="text-lg font-semibold">
                 Sent
@@ -773,7 +779,7 @@
       </div>
       
       <!-- Receive Section -->
-      <div class="rounded-xl border border-base-300 bg-base-100 p-4 hidden" id="receiveTab" data-tab="receive">
+      <div class="card-gradient transfer-tab-panel p-4 hidden" id="receiveTab" data-tab="receive">
           <form>
             <div class="space-y-2">
               <h4>Your Public QRL Address</h4>
@@ -824,7 +830,7 @@
       </div>
 
       <!-- Token Balances -->
-      <div class="rounded-xl border border-base-300 bg-base-100 p-4 hidden" id="tokenBalancesTab" data-tab="tokenBalances">
+      <div class="card-gradient transfer-tab-panel p-4 hidden" id="tokenBalancesTab" data-tab="tokenBalances">
         <h2 class="text-lg font-semibold">
           <div class="">
             Token Balances
@@ -864,7 +870,7 @@
         </div>
       </div>
 
-      <div class="rounded-xl border border-base-300 bg-base-100 p-4 hidden" data-tab="nftBalances">
+      <div class="card-gradient transfer-tab-panel p-4 hidden" data-tab="nftBalances">
         <h2 class="text-lg font-semibold">
           <div class="">
             NFTs
@@ -917,11 +923,16 @@
     <div class="">
       
       <!-- Transaction History -->
-      <h4 class="text-lg font-semibold pageHeader">
-        <div class="">
-          Transaction History
+      <div id="transactionHistoryHeader" class="tabs tabs-boxed w-full p-1">
+        <div class="tab tab-active flex-1 justify-start gap-3 pointer-events-none text-base-content border-base-300">
+          <span class="bg-primary/20 p-2 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </span>
+          <span class="text-base font-semibold">Transaction History</span>
         </div>
-      </h4>
+      </div>
       {{#if loadingTransactions}}
       <div id="loadingTransactions" class="alert gap-3">
         <br /><br />
@@ -948,20 +959,20 @@
       {{#if addressHasTransactions}}
         {{#each addressTransactions}}
           {{#if isTransfer this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
             {{#if isMyAddress this.addr_from}}
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             {{else}}
-            <img class="transactionTypeImage" src="/img/icons/receive.svg" />
+            <span class="tx-direction-icon tx-direction-incoming"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7L7 17M7 17H15M7 17V9" /></svg></span>
             {{/if}}
             <div class="">
-              <div class="text-lg font-semibold">
+              <div class="transactionTitle">
                 {{#if isMyAddress this.addr_from}}
                 Sent
                 {{else}}
                 Received
                 {{/if}}
-                 | {{this.timestamp}}
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{#if isMyAddress this.addr_from}}
@@ -974,16 +985,16 @@
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">{{#if isMyAddress this.addr_from}} {{this.totalTransferred}} {{else}} {{this.thisReceivedAmount}} {{/if}} Quanta &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">{{#if isMyAddress this.addr_from}} {{this.totalTransferred}} {{else}} {{this.thisReceivedAmount}} {{/if}} Quanta</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isTokenCreation this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
+              <div class="transactionTitle">
                 {{#if isCreateNFT}}
                 Create NFT - 
                         {{#if knownProvider}}
@@ -992,11 +1003,12 @@
                         {{#if knownProvider}}
                         <a href="{{providerURL}}/{{this.transaction_hash}}">{{providerName}}</a> ({{providerID}})
                         {{else}}
-                        Unknown provider {{providerID}} |
+                        Unknown provider {{providerID}}
                         {{/if}}
-                        {{this.timestamp}}
+                        <span class="transactionTimestamp">{{this.timestamp}}</span>
                 {{else}}
-                Token Creation - {{this.tx.token.name}} ({{this.tx.token.symbol}}) | {{this.timestamp}}
+                Token Creation - {{this.tx.token.name}} ({{this.tx.token.symbol}})
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
                 {{/if}}
               </div>
               <p class="transactionAddress">
@@ -1004,26 +1016,27 @@
               </p>
             </div>
             <div class="floatright">
-               <a href="/verify-txid/{{this.tx.transaction_hash}}">{{this.symbol}} &gt;</a>
+               <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">{{this.symbol}}</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isTokenTransfer this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
             {{#if isMyAddress this.addr_from}}
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             {{else}}
-            <img class="transactionTypeImage" src="/img/icons/receive.svg" />
+            <span class="tx-direction-icon tx-direction-incoming"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7L7 17M7 17H15M7 17V9" /></svg></span>
             {{/if}}
             <div class="">
-              <div class="text-lg font-semibold">
+              <div class="transactionTitle">
                 {{#if isMyAddress this.addr_from}}
                 Tokens Sent
                 {{else}}
                 Tokens Received
                 {{/if}}
-                - {{this.tx.transfer_token.name}} ({{this.tx.transfer_token.symbol}}) | {{this.timestamp}}
+                - {{this.tx.transfer_token.name}} ({{this.tx.transfer_token.symbol}})
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{#if isMyAddress this.addr_from}}
@@ -1036,143 +1049,151 @@
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">{{#if isMyAddress this.addr_from}} {{tokenTotalTransferred}} {{else}} {{this.thisReceivedAmount}} {{/if}} {{this.symbol}} &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">{{#if isMyAddress this.addr_from}} {{tokenTotalTransferred}} {{else}} {{this.thisReceivedAmount}} {{/if}} {{this.symbol}}</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isCoinbaseTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/receive.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-incoming"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7L7 17M7 17H15M7 17V9" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Coinbase Received | {{this.timestamp}}
+              <div class="transactionTitle">
+                Coinbase Received
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{# if bech32}}{{this.from_b32}}{{else}}{{this.from_hex}}{{/if}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">{{this.amount}} Quanta &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">{{this.amount}} Quanta</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isSlaveTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Slave Transaction | {{this.timestamp}}
+              <div class="transactionTitle">
+                Slave Transaction
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">{{this.amount}} Quanta &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">{{this.amount}} Quanta</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isLatticePKTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Lattice Public Key | {{this.timestamp}}
+              <div class="transactionTitle">
+                Lattice Public Key
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isCreateMultiSigTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Multisig Create | {{this.timestamp}}
+              <div class="transactionTitle">
+                Multisig Create
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isSpendMultiSigTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Multisig Spend | {{this.timestamp}}
+              <div class="transactionTitle">
+                Multisig Spend
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isVoteMultiSigTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Multisig Vote | {{this.timestamp}}
+              <div class="transactionTitle">
+                Multisig Vote
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isMessageTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Message | {{this.timestamp}}
+              <div class="transactionTitle">
+                Message
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction</a>
             </div>
           </div>
           {{/if}}
 
           {{#if isDocumentNotarisation this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord" data-txhash="{{this.tx.transaction_hash}}">
-            <img class="transactionTypeImage" src="/img/icons/send.svg" />
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
             <div class="">
-              <div class="text-lg font-semibold">
-                Document Notarisation | {{this.timestamp}}
+              <div class="transactionTitle">
+                Document Notarisation
+                <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
               <p class="transactionAddress">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
             <div class="floatright">
-              <a href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction &gt;</a>
+              <a class="txValueLink" href="/verify-txid/{{this.tx.transaction_hash}}">View Transaction</a>
             </div>
           </div>
           {{/if}}
@@ -1224,6 +1245,23 @@
             </div>
           </div>
         </div>
+      {{/if}}
+
+      {{#if openedAddress}}
+      <div class="mt-4">
+        <a
+          class="btn btn-secondary btn-sm w-full"
+          href="{{nodeExplorerUrl}}/a/{{openedAddress}}"
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          referrerpolicy="no-referrer"
+        >
+          View Address on Explorer
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </a>
+      </div>
       {{/if}}
     </div>
   </div>

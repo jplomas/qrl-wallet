@@ -56,6 +56,132 @@
     background-clip: padding-box, padding-box, padding-box, border-box;
   }
 
+  #sendReceiveTabs {
+    margin-bottom: 0;
+    border: 1px solid color-mix(in oklab, var(--color-base-300) 85%, transparent);
+    border-bottom: 0;
+    border-radius: var(--radius-box, 0.75rem) var(--radius-box, 0.75rem) 0 0;
+    background-color: color-mix(in oklab, var(--color-base-200) 94%, transparent);
+  }
+
+  #sendReceiveTabs .tab {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  #sendReceiveTabs .tab.tab-active {
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+    border: 1px solid var(--color-primary);
+    font-weight: 700;
+    box-shadow: 0 4px 14px color-mix(in oklab, var(--color-primary) 32%, transparent);
+    transform: translateY(-1px);
+  }
+
+  #sendReceiveTabs .tab:not(.tab-active):hover {
+    background: color-mix(in oklab, var(--color-base-300) 85%, transparent);
+  }
+
+  .transfer-tab-panel {
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-top: 1px solid color-mix(in oklab, var(--color-base-300) 85%, transparent);
+    background-image:
+      linear-gradient(var(--color-base-200), var(--color-base-200)),
+      radial-gradient(circle at 12% -32%, rgba(255, 167, 41, 0.14), transparent 48%),
+      radial-gradient(circle at 88% -24%, rgba(74, 175, 255, 0.12), transparent 44%);
+    background-origin: border-box;
+    background-clip: padding-box, padding-box, padding-box;
+  }
+
+  .transactionRecord {
+    align-items: flex-start;
+    border: 1px solid color-mix(in oklab, var(--color-base-300) 80%, transparent);
+    background-color: color-mix(in oklab, var(--color-base-200) 88%, transparent);
+    border-radius: var(--radius-box, 0.75rem);
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  .tx-direction-icon {
+    display: inline-flex;
+    height: 2.5rem;
+    width: 2.5rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+  }
+
+  .tx-direction-outgoing {
+    border: 1px solid color-mix(in oklab, var(--color-primary) 40%, transparent);
+    background-color: color-mix(in oklab, var(--color-primary) 16%, transparent);
+    color: var(--color-primary);
+  }
+
+  .tx-direction-incoming {
+    border: 1px solid color-mix(in oklab, var(--color-secondary) 40%, transparent);
+    background-color: color-mix(in oklab, var(--color-secondary) 16%, transparent);
+    color: var(--color-secondary);
+  }
+
+  .transactionRecord:hover {
+    background-color: color-mix(in oklab, var(--color-base-200) 100%, transparent);
+    border-color: color-mix(in oklab, var(--color-primary) 28%, var(--color-base-300));
+  }
+
+  .transactionRecord.cursor-pointer:hover {
+    border-color: color-mix(in oklab, var(--color-primary) 72%, var(--color-secondary) 28%);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--color-primary) 35%, transparent),
+      0 10px 22px rgba(0, 0, 0, 0.24);
+    transform: translateY(-1px);
+  }
+
+  .transactionRecord .transactionTitle {
+    font-size: 0.95rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--color-base-content);
+  }
+
+  .transactionRecord .transactionTimestamp {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    font-weight: 500;
+    color: color-mix(in oklab, var(--color-base-content) 64%, transparent);
+  }
+
+  .transactionRecord .transactionAddress {
+    margin-top: 0.3rem;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+  }
+
+  .transactionRecord .floatright {
+    margin-left: auto;
+    align-self: flex-start;
+    padding-top: 0.1rem;
+    white-space: nowrap;
+  }
+
+  .transactionRecord .floatright a,
+  .transactionRecord .floatright .txValueLink {
+    font-size: 0.84rem;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  .transactionRecord .floatright a:hover {
+    text-decoration: underline;
+  }
+
   .site-footer {
     position: relative;
     overflow: hidden;
