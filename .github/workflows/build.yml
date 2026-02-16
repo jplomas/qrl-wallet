@@ -83,13 +83,20 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $bootstrapGz = Join-Path $env:TEMP 'meteor-bootstrap-os.windows.x86_64.tar.gz'
           $extractDir = Join-Path $env:TEMP 'meteor-bootstrap-extract'
+          $meteorInstallDir = Join-Path $env:LOCALAPPDATA '.meteor'
           if (Test-Path $extractDir) { Remove-Item -Recurse -Force $extractDir }
           New-Item -ItemType Directory -Path $extractDir | Out-Null
           Invoke-WebRequest -Uri 'https://packages.meteor.com/bootstrap-link?arch=os.windows.x86_64' -OutFile $bootstrapGz
           tar -xzf $bootstrapGz -C $extractDir
-          $bootstrapTar = Get-ChildItem -Path $extractDir -Filter 'meteor-bootstrap-*.tar' | Select-Object -First 1
-          if (-not $bootstrapTar) { throw 'Meteor bootstrap tar not found after extraction.' }
-          tar -xf $bootstrapTar.FullName -C $env:LOCALAPPDATA
+          $bootstrapTar = Get-ChildItem -Path $extractDir -Filter 'meteor-bootstrap-*.tar' -File -Recurse | Select-Object -First 1
+          if ($bootstrapTar) {
+            tar -xf $bootstrapTar.FullName -C $env:LOCALAPPDATA
+          } else {
+            $meteorDir = Get-ChildItem -Path $extractDir -Directory -Recurse -Force | Where-Object { $_.Name -eq '.meteor' } | Select-Object -First 1
+            if (-not $meteorDir) { throw 'Meteor bootstrap did not contain a .meteor directory after extraction.' }
+            if (Test-Path $meteorInstallDir) { Remove-Item -Recurse -Force $meteorInstallDir }
+            Copy-Item -Path $meteorDir.FullName -Destination $meteorInstallDir -Recurse -Force
+          }
           "$env:LOCALAPPDATA\.meteor" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Verify toolchain

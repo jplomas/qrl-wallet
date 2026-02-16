@@ -211,7 +211,9 @@ async function hardenFuses(target) {
     [FuseV1Options.OnlyLoadAppFromAsar]: true,
   };
 
-  if (target.platform === 'darwin' && target.arch === 'arm64') {
+  if (target.platform === 'darwin') {
+    // Flipping fuses mutates the executable and can invalidate signatures.
+    // Always restore ad-hoc signature on macOS targets (x64 and arm64).
     fuseConfig.resetAdHocDarwinSignature = true;
   }
 
