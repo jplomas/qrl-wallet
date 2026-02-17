@@ -157,6 +157,24 @@ function patchElectrifyQrl() {
     }
   }
 
+  const oldPackagerOptionsExtend = "  _.extend(args, packager_options);";
+  const newPackagerOptionsExtend = `  _.extend(args, packager_options);
+
+  // Avoid npm prune stalls on Windows runners and keep packaging logs visible in CI.
+  if (this.$.env.sys.platform === 'win32' && typeof args.prune === 'undefined') {
+    args.prune = false;
+  }
+  if (typeof args.quiet === 'undefined') {
+    args.quiet = false;
+  }`;
+
+  if (electronSource.includes(oldPackagerOptionsExtend)) {
+    electronSource = electronSource.replace(oldPackagerOptionsExtend, newPackagerOptionsExtend);
+    fs.writeFileSync(electronFile, electronSource);
+    electronSource = fs.readFileSync(electronFile, 'utf8');
+    console.log('Patched @theqrl/electrify-qrl electron-packager defaults for CI stability');
+  }
+
   let appSource = fs.readFileSync(appFile, 'utf8');
   const oldVersionLookup = '    var pkg_version = require(pkg_path).dependencies.electrify;';
   const newVersionLookup = `    var pkg = require(pkg_path);

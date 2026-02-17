@@ -23,6 +23,7 @@
       "^/\\.dist($|/)",
       "^/dist($|/)"
     ],
+    "prune": false,
     "version-string": {
       "CompanyName": "The QRL",
       "LegalCopyright": "Copyright 2020 Die QRL Stiftung, Zug Switzerland",

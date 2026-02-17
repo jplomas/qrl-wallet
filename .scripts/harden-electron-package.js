@@ -202,12 +202,16 @@ async function hardenFuses(target) {
   }
 
   const binaryTarget = target.platform === 'darwin' ? target.appPath : target.exePath;
+  const isWindows = target.platform === 'win32';
   const fuseConfig = {
     version: FuseVersion.V1,
     [FuseV1Options.RunAsNode]: false,
     [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
     [FuseV1Options.EnableNodeCliInspectArguments]: false,
-    [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+    // NOTE: With current Electrify + electron-packager on Windows, enabling this
+    // fuse can produce runtime "FindResource failed (0x715)" because the expected
+    // ASAR integrity resource is not embedded in the generated EXE.
+    [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: !isWindows,
     [FuseV1Options.OnlyLoadAppFromAsar]: true,
   };
 
@@ -229,10 +233,17 @@ async function hardenFuses(target) {
     wire[FuseV1Options.EnableNodeCliInspectArguments],
     'EnableNodeCliInspectArguments',
   );
-  assertFuseEnabled(
-    wire[FuseV1Options.EnableEmbeddedAsarIntegrityValidation],
-    'EnableEmbeddedAsarIntegrityValidation',
-  );
+  if (isWindows) {
+    assertFuseDisabled(
+      wire[FuseV1Options.EnableEmbeddedAsarIntegrityValidation],
+      'EnableEmbeddedAsarIntegrityValidation',
+    );
+  } else {
+    assertFuseEnabled(
+      wire[FuseV1Options.EnableEmbeddedAsarIntegrityValidation],
+      'EnableEmbeddedAsarIntegrityValidation',
+    );
+  }
   assertFuseEnabled(wire[FuseV1Options.OnlyLoadAppFromAsar], 'OnlyLoadAppFromAsar');
 }
 
