@@ -114,12 +114,7 @@ jobs:
         run: node .scripts/patch-ledger-exports.js
 
       - name: Verify electrify patch state
-        run: |
-          node -e "console.log('electrify cli', require.resolve('@theqrl/electrify-qrl/bin/cli.js'))"
-          rg -n "this\\.stdio = \\(process\\.env\\.CI \\|\\| /TRACE\\|ALL/i\\.test\\(log_levels\\)\\) \\? 'inherit' : 'ignore';" node_modules/@theqrl/electrify-qrl/lib/env.js
-          rg -n "meteorArgs = \\['build', tmp_dir, '--directory'\\]" node_modules/@theqrl/electrify-qrl/lib/app.js
-          rg -n "stdio: 'inherit'" node_modules/@theqrl/electrify-qrl/lib/app.js
-          rg -n "args\\.prune = false;" node_modules/@theqrl/electrify-qrl/lib/electron.js
+        run: node .scripts/verify-electrify-patches.js
 
       - name: Build CSS
         run: npm run build:css
