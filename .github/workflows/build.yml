@@ -129,10 +129,36 @@ jobs:
       - name: Harden packaged app
         run: node .scripts/harden-electron-package.js --platform=${{ matrix.platform }}
 
-      - name: Upload artifacts
+      - name: Build installer (Windows)
+        if: matrix.platform == 'win32'
+        run: node .scripts/build-installer.js --platform=${{ matrix.platform }} --arch=${{ matrix.arch }}
+
+      - name: Build portable zip (Windows)
+        if: matrix.platform == 'win32'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = node -p "require('./package.json').version"
+          $bundleDir = ".electrify/.dist/QRLWallet-win32-${{ matrix.arch }}"
+          $zipPath = ".electrify/.dist/installers/QRLWallet-$version-win32-${{ matrix.arch }}-portable.zip"
+          if (-not (Test-Path $bundleDir)) { throw "Missing bundle directory: $bundleDir" }
+          if (Test-Path $zipPath) { Remove-Item -Force $zipPath }
+          tar -a -c -f $zipPath -C ".electrify/.dist" "QRLWallet-win32-${{ matrix.arch }}"
+
+      - name: Upload artifacts (Windows installer)
+        if: matrix.platform == 'win32'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: .electrify/.dist/**
+          path: .electrify/.dist/installers/**
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Upload artifacts (non-Windows package)
+        if: matrix.platform != 'win32'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: .electrify/.dist/QRLWallet-${{ matrix.platform }}-${{ matrix.arch }}/**
           include-hidden-files: true
           if-no-files-found: error
