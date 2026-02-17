@@ -50,6 +50,7 @@ jobs:
     env:
       CI: true
       BUILD_ARCH: ${{ matrix.arch }}
+      LOGELECTRIFY: TRACE
 
     steps:
       - name: Checkout
@@ -117,6 +118,7 @@ jobs:
         run: node -e "const fs=require('fs');fs.rmSync('.electrify/.dist',{recursive:true,force:true});fs.mkdirSync('.electrify/.dist',{recursive:true});"
 
       - name: Package desktop app
+        timeout-minutes: 45
         run: npx electrify package -o .electrify/.dist --platform ${{ matrix.platform }} --arch ${{ matrix.arch }}
 
       - name: Harden packaged app
