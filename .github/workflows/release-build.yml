@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -161,3 +161,32 @@ jobs:
             .electrify/.dist/installers/**
           include-hidden-files: true
           if-no-files-found: error
+
+  publish-release:
+    name: Publish Release Assets
+    runs-on: ubuntu-24.04
+    needs: release-build
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download matrix artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qrlwallet-release-*
+          path: release-artifacts
+
+      - name: Show collected release assets
+        run: |
+          find release-artifacts -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.exe' -o -name '*-portable.zip' \) -print | sort
+
+      - name: Upload assets to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            release-artifacts/**/*.dmg
+            release-artifacts/**/*.deb
+            release-artifacts/**/*-portable.zip
+            release-artifacts/**/*.exe
