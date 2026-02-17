@@ -244,7 +244,7 @@ function patchElectrifyQrl() {
   spawn(meteorCmd, meteorArgs, {
       cwd: this.$.env.app.meteor,
       env: env,
-      stdio: this.$.env.stdio,
+      stdio: 'inherit',
       shell: this.$.env.os.is_windows
     }
   ).on('exit', function(){`;
@@ -273,7 +273,7 @@ function patchElectrifyQrl() {
   spawn(meteorCmd, meteorArgs, {
       cwd: this.$.env.app.meteor,
       env: env,
-      stdio: this.$.env.stdio,
+      stdio: 'inherit',
       shell: this.$.env.os.is_windows
     }
   ).on('exit', function(code){`;
@@ -339,6 +339,15 @@ function patchElectrifyQrl() {
     fs.writeFileSync(envFile, envSource);
     envSource = fs.readFileSync(envFile, 'utf8');
     console.log('Patched @theqrl/electrify-qrl Meteor dev_bundle detection');
+  }
+
+  const oldStdioLine = "  this.stdio = /TRACE|ALL/i.test(log_levels) ? 'inherit' : 'ignore';";
+  const newStdioLine = "  this.stdio = (process.env.CI || /TRACE|ALL/i.test(log_levels)) ? 'inherit' : 'ignore';";
+  if (envSource.includes(oldStdioLine)) {
+    envSource = envSource.replace(oldStdioLine, newStdioLine);
+    fs.writeFileSync(envFile, envSource);
+    envSource = fs.readFileSync(envFile, 'utf8');
+    console.log('Patched @theqrl/electrify-qrl stdio behavior for CI visibility');
   }
 
   const oldPackagedSettingsBlock = `  if(this.app.is_packaged) {

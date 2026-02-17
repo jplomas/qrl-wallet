@@ -111,6 +111,12 @@ jobs:
       - name: Apply compatibility patches
         run: node .scripts/patch-ledger-exports.js
 
+      - name: Verify electrify patch state
+        run: |
+          rg -n "this\\.stdio = \\(process\\.env\\.CI \\|\\| /TRACE\\|ALL/i\\.test\\(log_levels\\)\\) \\? 'inherit' : 'ignore';" node_modules/@theqrl/electrify-qrl/lib/env.js
+          rg -n "meteorArgs = \\['build', tmp_dir, '--directory'\\]" node_modules/@theqrl/electrify-qrl/lib/app.js
+          rg -n "stdio: 'inherit'" node_modules/@theqrl/electrify-qrl/lib/app.js
+
       - name: Build CSS
         run: npm run build:css
 
