@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag to publish assets to (example: v1.9.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -55,6 +60,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -166,7 +173,9 @@ jobs:
     name: Publish Release Assets
     runs-on: ubuntu-24.04
     needs: release-build
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
     steps:
       - name: Download matrix artifacts
         uses: actions/download-artifact@v4
@@ -181,10 +190,11 @@ jobs:
       - name: Upload assets to GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           fail_on_unmatched_files: true
           overwrite_files: true
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           files: |
             release-artifacts/**/*.dmg
             release-artifacts/**/*.deb
