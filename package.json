@@ -88,11 +88,11 @@
     "releaseready": "meteor lint",
     "acquire:node": "cp \"$(which node)\" .electrify/bin/node",
     "build": "npm run cleanDist && run-script-os",
-    "build:darwin": "npm run cleanDist:darwin && node .scripts/patch-ledger-exports.js && electrify package -o .electrify/.dist/ && node .scripts/harden-electron-package.js --platform=darwin",
+    "build:darwin": "npm run cleanDist:darwin && node .scripts/patch-ledger-exports.js && node .scripts/sync-mac-icon.js && electrify package -o .electrify/.dist/ && node .scripts/harden-electron-package.js --platform=darwin",
     "build:linux": "npm run cleanDist:linux && node .scripts/patch-ledger-exports.js && electrify package -o .electrify/.dist/ && node .scripts/harden-electron-package.js --platform=linux",
     "build:win32": "npm run cleanDist:win32 && node .scripts/patch-ledger-exports.js && electrify package -o .electrify/.dist/ && node .scripts/harden-electron-package.js --platform=win32",
     "installer": "run-script-os",
-    "installer:darwin": "node build-dmg.js",
+    "installer:darwin": "node .scripts/sync-mac-icon.js && node build-dmg.js",
     "installer:linux": "node build-deb.js",
     "installer:win32": "node build-msi.js",
     "desktop": "meteor-desktop"

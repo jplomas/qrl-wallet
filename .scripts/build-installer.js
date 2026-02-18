@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const { build, Platform, Arch } = require('electron-builder');
 const pkg = require('../package.json');
 
@@ -61,15 +62,62 @@ const prepackaged = platform === 'darwin'
   ? path.join(prepackagedRoot, 'QRLWallet.app')
   : prepackagedRoot;
 const outputDir = path.join(distRoot, 'installers');
+const iconComposerPath = path.resolve('.electrify/assets/qrl.icon');
+const macPngIconPath = path.resolve('.electrify/assets/qrl-mac.png');
+const fallbackIcnsPath = path.resolve('.electrify/assets/qrl.icns');
+const dmgVolumeIconPath = fallbackIcnsPath;
+
+function syncPrepackagedMacIcon(appPath, iconPath) {
+  if (platform !== 'darwin') {
+    return;
+  }
+
+  if (!fs.existsSync(iconPath)) {
+    console.warn(`[installer] mac icon not found at ${iconPath}; skipping app icon sync.`);
+    return;
+  }
+
+  const appIconPath = path.join(appPath, 'Contents', 'Resources', 'electron.icns');
+  if (!fs.existsSync(appIconPath)) {
+    console.warn(`[installer] expected app icon not found at ${appIconPath}; skipping app icon sync.`);
+    return;
+  }
+
+  fs.copyFileSync(iconPath, appIconPath);
+  console.log(`[installer] synced app icon from ${path.basename(iconPath)} to ${appIconPath}`);
+}
+
+function canUseIconComposerAsset() {
+  if (platform !== 'darwin' || !fs.existsSync(iconComposerPath)) {
+    return false;
+  }
+
+  const check = spawnSync('actool', ['--version'], {
+    stdio: 'ignore',
+  });
+
+  return check.status === 0;
+}
 
 if (!fs.existsSync(prepackaged)) {
   die(`Prepackaged app not found: ${prepackaged}. Run electrify package first.`);
 }
 
+syncPrepackagedMacIcon(prepackaged, fallbackIcnsPath);
+
 fs.mkdirSync(outputDir, { recursive: true });
 
 const targetConfig = platformMap[platform];
 const targets = targetConfig.targetPlatform.createTarget([targetConfig.target], archMap[arch]);
+const hasMacPngIcon = fs.existsSync(macPngIconPath);
+const useIconComposerAsset = !hasMacPngIcon && canUseIconComposerAsset();
+const fallbackMacIconPath = useIconComposerAsset ? iconComposerPath : fallbackIcnsPath;
+const macIconPath = hasMacPngIcon ? macPngIconPath : fallbackMacIconPath;
+
+if (platform === 'darwin' && !hasMacPngIcon && !useIconComposerAsset && fs.existsSync(iconComposerPath)) {
+  const fallbackLabel = path.basename(fallbackIcnsPath);
+  console.warn(`[installer] actool is unavailable; falling back to ${fallbackLabel}. Run \`xcodebuild -runFirstLaunch\` to enable qrl.icon.`);
+}
 
 const builderConfig = {
   appId: 'org.theqrl.wallet',
@@ -80,12 +128,13 @@ const builderConfig = {
     output: outputDir,
   },
   mac: {
-    icon: path.resolve('.electrify/assets/qrl.icns'),
+    icon: macIconPath,
     category: 'public.app-category.finance',
   },
   dmg: {
     title: 'QRL Wallet Installer',
     background: path.resolve('.electrify/assets/dmgBackground.png'),
+    icon: dmgVolumeIconPath,
   },
   win: {
     icon: path.resolve('.electrify/assets/qrl.ico'),
