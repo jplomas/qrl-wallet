@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, shell } = require('electron');
 const electrify = require('@theqrl/electrify-qrl')(__dirname);
 const { version: APP_VERSION } = require('./package.json');
 
@@ -9,6 +9,34 @@ const MAX_MAIN_LOAD_RETRIES = 60;
 const MAX_BLANK_RECOVERY_ATTEMPTS = 3;
 const FORCE_SHOW_DELAY_MS = 12000;
 const CALLBACK_FALLBACK_DELAY_MS = 15000;
+const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+function parseUrl(url) {
+  try {
+    return new URL(url);
+  } catch (error) {
+    return null;
+  }
+}
+
+function isAllowedOrigin(url, allowedOrigin) {
+  const parsed = parseUrl(url);
+  return Boolean(parsed && parsed.origin === allowedOrigin);
+}
+
+function openInSystemBrowser(url) {
+  const parsed = parseUrl(url);
+  if (!parsed || !EXTERNAL_PROTOCOLS.has(parsed.protocol)) {
+    return;
+  }
+
+  shell.openExternal(parsed.toString()).catch((error) => {
+    console.error('[electron] failed to open external URL', {
+      url,
+      error: error && error.message ? error.message : error,
+    });
+  });
+}
 
 app.disableHardwareAcceleration();
 
@@ -283,25 +311,28 @@ app.on('ready', function() {
       console.error('[electron] main window became unresponsive');
     });
 
-    // Prevent drag and drop links from opening in electron window
+    // Ensure off-origin links always open in the system browser.
     window.webContents.on('will-navigate', (ev, url) => {
-      try {
-        if (new URL(url).origin !== allowedOrigin) {
-          ev.preventDefault();
-        }
-      } catch (error) {
-        ev.preventDefault();
+      if (isAllowedOrigin(url, allowedOrigin)) {
+        return;
       }
+      ev.preventDefault();
+      openInSystemBrowser(url);
+    });
+
+    window.webContents.on('will-redirect', (ev, url) => {
+      if (isAllowedOrigin(url, allowedOrigin)) {
+        return;
+      }
+      ev.preventDefault();
+      openInSystemBrowser(url);
     });
 
     window.webContents.setWindowOpenHandler(({ url }) => {
-      try {
-        if (new URL(url).origin === allowedOrigin) {
-          return { action: 'allow' };
-        }
-      } catch (error) {
-        // Treat malformed URLs as unsafe.
+      if (isAllowedOrigin(url, allowedOrigin)) {
+        return { action: 'allow' };
       }
+      openInSystemBrowser(url);
       return { action: 'deny' };
     });
 
