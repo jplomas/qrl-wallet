@@ -39,7 +39,7 @@ const platformMap = {
   },
   linux: {
     targetPlatform: Platform.LINUX,
-    target: 'deb',
+    target: ['deb', 'pacman'],
   },
 };
 
@@ -108,7 +108,7 @@ syncPrepackagedMacIcon(prepackaged, fallbackIcnsPath);
 fs.mkdirSync(outputDir, { recursive: true });
 
 const targetConfig = platformMap[platform];
-const targets = targetConfig.targetPlatform.createTarget([targetConfig.target], archMap[arch]);
+const targets = targetConfig.targetPlatform.createTarget(targetConfig.target, archMap[arch]);
 const hasMacPngIcon = fs.existsSync(macPngIconPath);
 const useIconComposerAsset = !hasMacPngIcon && canUseIconComposerAsset();
 const fallbackMacIconPath = useIconComposerAsset ? iconComposerPath : fallbackIcnsPath;

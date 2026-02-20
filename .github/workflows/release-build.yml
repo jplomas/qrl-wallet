@@ -74,7 +74,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libusb-dev libudev-dev
+          sudo apt-get install -y libusb-dev libudev-dev libarchive-tools
 
       - name: Install Meteor (macOS/Linux)
         if: runner.os != 'Windows'
@@ -186,7 +186,7 @@ jobs:
 
       - name: Show collected release assets
         run: |
-          find release-artifacts -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.exe' -o -name '*-portable.zip' \) -print | sort
+          find release-artifacts -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.pacman' -o -name '*.exe' -o -name '*-portable.zip' \) -print | sort
 
       - name: Upload assets to GitHub release
         uses: softprops/action-gh-release@v2
@@ -199,5 +199,6 @@ jobs:
           files: |
             release-artifacts/**/*.dmg
             release-artifacts/**/*.deb
+            release-artifacts/**/*.pacman
             release-artifacts/**/*-portable.zip
             release-artifacts/**/*.exe
