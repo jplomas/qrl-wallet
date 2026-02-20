@@ -5,3 +5,4 @@ build-conf.js
 tailwind.config.js
 postcss.config.js
 nodejs.js
+index.js
