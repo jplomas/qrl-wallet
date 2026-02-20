@@ -428,10 +428,14 @@ Template.appBody.helpers({
     return status
   },
   customNodeCreated() {
+    if (Meteor.settings && Meteor.settings.public && Meteor.settings.public.lockCustomEndpoints) return false
     return LocalStore.get('customNodeCreated')
   },
   customNodeName() {
     return LocalStore.get('customNodeName')
+  },
+  lockCustomEndpoints() {
+    return Meteor.settings && Meteor.settings.public && Meteor.settings.public.lockCustomEndpoints === true
   },
 
   /* Active Menu Item Helpers */
@@ -507,5 +511,8 @@ Template.customNode.helpers({
   },
   customNodeExplorer() {
     return LocalStore.get('customNodeExplorerUrl')
+  },
+  lockCustomEndpoints() {
+    return Meteor.settings && Meteor.settings.public && Meteor.settings.public.lockCustomEndpoints === true
   },
 })

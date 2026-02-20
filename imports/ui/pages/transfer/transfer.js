@@ -127,6 +127,7 @@ function generateTransaction() {
   if (thisAddressesTo.length > 3 && getXMSSDetails().walletType === 'ledger') {
     $('#generating').hide()
     window.walletUi.showModal('#maxThreeRecipientsLedger')
+    return
   }
 
   // Fail if OTS Key reuse is detected
@@ -145,13 +146,18 @@ function generateTransaction() {
     const convertAmountToBigNumber = new BigNumber(sendAmounts[i].value)
     const thisAmount = convertAmountToBigNumber
       .times(SHOR_PER_QUANTA)
-      .toNumber()
-    thisAmounts.push(thisAmount)
+      .integerValue(BigNumber.ROUND_FLOOR)
+    if (!thisAmount.isFinite() || thisAmount.isGreaterThan(Number.MAX_SAFE_INTEGER)) {
+      $('#generating').hide()
+      Session.set('transactionGenerationError', 'Amount exceeds maximum safe precision')
+      return
+    }
+    thisAmounts.push(thisAmount.toNumber())
   }
 
   // Calculate txn fee
   const convertFeeToBigNumber = new BigNumber(txnFee)
-  const thisTxnFee = convertFeeToBigNumber.times(SHOR_PER_QUANTA).toNumber()
+  const thisTxnFee = convertFeeToBigNumber.times(SHOR_PER_QUANTA).integerValue(BigNumber.ROUND_FLOOR).toNumber()
 
   // Construct request
   const request = {
@@ -525,13 +531,18 @@ function sendTokensTxnCreate(tokenHash, decimals) {
     const convertAmountToBigNumber = new BigNumber(sendAmounts[i].value)
     const thisAmount = convertAmountToBigNumber
       .times(Math.pow(10, decimals))
-      .toNumber() // eslint-disable-line
-    thisAmounts.push(thisAmount)
+      .integerValue(BigNumber.ROUND_FLOOR)
+    if (!thisAmount.isFinite() || thisAmount.isGreaterThan(Number.MAX_SAFE_INTEGER)) {
+      $('#generating').hide()
+      Session.set('tokenTransferError', 'Token amount exceeds maximum safe precision')
+      return
+    }
+    thisAmounts.push(thisAmount.toNumber())
   }
 
   // Calculate txn fee
   const convertFeeToBigNumber = new BigNumber(txnFee)
-  const thisTxnFee = convertFeeToBigNumber.times(SHOR_PER_QUANTA).toNumber()
+  const thisTxnFee = convertFeeToBigNumber.times(SHOR_PER_QUANTA).integerValue(BigNumber.ROUND_FLOOR).toNumber()
 
   // Construct request
   const request = {

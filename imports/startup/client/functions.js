@@ -229,6 +229,7 @@ isWalletFileDeprecated = (wallet) => {
 }
 
 resetWalletStatus = () => {
+  XMSS_OBJECT = null
   const status = {}
   status.colour = 'red'
   status.string = 'No wallet has been opened.'

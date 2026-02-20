@@ -251,10 +251,14 @@ Template.mobile.helpers({
     return visibleNodes
   },
   customNodeCreated() {
+    if (Meteor.settings && Meteor.settings.public && Meteor.settings.public.lockCustomEndpoints) return false
     return LocalStore.get('customNodeCreated')
   },
   customNodeName() {
     return LocalStore.get('customNodeName')
+  },
+  lockCustomEndpoints() {
+    return Meteor.settings && Meteor.settings.public && Meteor.settings.public.lockCustomEndpoints === true
   },
   connectionStatus() {
     if (Session.get('nodeStatus') === 'ok') {

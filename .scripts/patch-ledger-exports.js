@@ -555,6 +555,28 @@ require('./commands').forEach(function (command) {
   });
 }
 
+function patchProtobufCSP() {
+  // @protobufjs/inquire uses an obfuscated eval() to dynamically require modules:
+  //   eval("quire".replace(/^/,"re"))(moduleName)
+  // Replace with a direct require() — identical behavior, no eval needed.
+  const inquirePath = path.join(projectRoot, 'node_modules', '@protobufjs', 'inquire', 'index.js');
+  if (fs.existsSync(inquirePath)) {
+    let source = fs.readFileSync(inquirePath, 'utf8');
+    const oldEval = 'eval("quire".replace(/^/,"re"))(moduleName)';
+    if (source.includes(oldEval)) {
+      source = source.replace(oldEval, 'require(moduleName)');
+      fs.writeFileSync(inquirePath, source);
+      console.log('Patched @protobufjs/inquire: replaced eval() with require()');
+    }
+  }
+
+  // Note: @protobufjs/codegen uses new Function() for runtime serializer generation.
+  // This cannot be patched without pre-compiling .proto files to static JS modules.
+  // Similarly, qrllib's Emscripten WASM glue uses new Function() in createNamedFunction.
+  // Both require 'unsafe-eval' in CSP — this is a known, documented limitation.
+}
+
 patchLedgerDevices();
 patchElectrifyQrl();
 patchShellJs();
+patchProtobufCSP();

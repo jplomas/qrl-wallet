@@ -91,14 +91,14 @@ FlowRouter.route('/close', {
 FlowRouter.route('/transfer', {
   name: 'App.transfer',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appTransfer' })
   },
 })
 FlowRouter.route('/reloadTransfer', {
   name: 'App.reloadTransfer',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appReloadTransfer' })
   },
 })
@@ -107,119 +107,119 @@ FlowRouter.route('/reloadTransfer', {
 FlowRouter.route('/tools', {
   name: 'App.tools',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appTools' })
   },
 })
 FlowRouter.route('/tools/message/create', {
   name: 'App.messageCreate',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appMessageCreate' })
   },
 })
 FlowRouter.route('/tools/multisig', {
   name: 'App.multisigMenu',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appMultisigMenu', multisig: 'multisigCreate' })
   },
 })
 FlowRouter.route('/tools/multisig/create', {
   name: 'App.multisigMenu',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appMultisigMenu', multisig: 'multisigCreate' })
   },
 })
 FlowRouter.route('/tools/multisig/spend', {
   name: 'App.multisigMenu',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appMultisigMenu', multisig: 'multisigSpend' })
   },
 })
 FlowRouter.route('/tools/multisig/vote', {
   name: 'App.multisigMenu',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appMultisigMenu', multisig: 'multisigVote' })
   },
 })
 FlowRouter.route('/tools/keybase', {
   name: 'App.keybaseCreate',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appKeybaseCreate' })
   },
 })
 FlowRouter.route('/tools/keybase/confirm', {
   name: 'App.keybaseConfirm',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appKeybaseConfirm' })
   },
 })
 FlowRouter.route('/tools/keybase/result', {
   name: 'App.keybaseResult',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appKeybaseResult' })
   },
 })
 FlowRouter.route('/tools/github', {
   name: 'App.githubCreate',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appGithubCreate' })
   },
 })
 FlowRouter.route('/tools/github/confirm', {
   name: 'App.githubConfirm',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appGithubConfirm' })
   },
 })
 FlowRouter.route('/tools/github/result', {
   name: 'App.githubResult',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appGithubResult' })
   },
 })
 FlowRouter.route('/tools/message/confirm', {
   name: 'App.messageConfirm',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appMessageConfirm' })
   },
 })
 FlowRouter.route('/tools/message/result', {
   name: 'App.messageResult',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appMessageResult' })
   },
 })
 FlowRouter.route('/tools/notarise/start', {
   name: 'App.notariseStart',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appNotariseStart' })
   },
 })
 FlowRouter.route('/tools/notarise/confirm', {
   name: 'App.notariseConfirm',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appNotariseConfirm' })
   },
 })
 FlowRouter.route('/tools/notarise/result', {
   name: 'App.notariseResult',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appNotariseResult' })
   },
 })
@@ -228,7 +228,7 @@ FlowRouter.route('/tools/notarise/result', {
 FlowRouter.route('/tools/addTokens', {
   name: 'App.addTokens',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appAddTokens' })
   },
 })
@@ -237,7 +237,7 @@ FlowRouter.route('/tools/addTokens', {
 FlowRouter.route('/tools/NFT', {
   name: 'App.NFT',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appNFT' })
   },
 })
@@ -246,7 +246,7 @@ FlowRouter.route('/tools/NFT', {
 FlowRouter.route('/tools/xmssindex/update', {
   name: 'App.xmssIndexUpdate',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appXmssIndexUpdate' })
   },
 })
@@ -255,21 +255,21 @@ FlowRouter.route('/tools/xmssindex/update', {
 FlowRouter.route('/tokens/create', {
   name: 'App.tokensCreate',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appTokenCreate' })
   },
 })
 FlowRouter.route('/tokens/create/confirm', {
   name: 'App.tokenCreationConfirm',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appTokenCreationConfirm' })
   },
 })
 FlowRouter.route('/tokens/create/result', {
   name: 'App.tokenCreationResult',
   action() {
-    if (Session.get('walletStatus').unlocked === false) { FlowRouter.go('/open') }
+    if (Session.get('walletStatus').unlocked === false) { return FlowRouter.go('/open') }
     BlazeLayout.render('appBody', { main: 'appTokenCreationResult' })
   },
 })

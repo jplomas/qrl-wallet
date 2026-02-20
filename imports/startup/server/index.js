@@ -26,12 +26,23 @@ const QRLPROTO_SHA256_OVERRIDES = [
     objectSha256: 'b1de7b4968bb3605a00670d9c946b993017c17d5cd12d8fedb1ac5c47ea2ef76',
     walletProto: 'b1de7b4968bb3605a00670d9c946b993017c17d5cd12d8fedb1ac5c47ea2ef76',
   },
+  {
+    version: '4.0.1 python',
+    protoSha256: '0d70a3372c4668a1bf4fd42983ae01f2e0fb54b4030b808bbea78e5adadb23f0',
+    objectSha256: '14369669c53fa09df90204b47d4b62cabdfa618485849b3210c4316fd36be149',
+    walletProto: '14369669c53fa09df90204b47d4b62cabdfa618485849b3210c4316fd36be149',
+  },
 ]
 const TRUSTED_QRLPROTO_SHA256 = [...QRLPROTO_SHA256, ...QRLPROTO_SHA256_OVERRIDES]
 
 const PROTO_PATH = Assets.absoluteFilePath('qrlbase.proto').split(
   'qrlbase.proto'
 )[0]
+
+// When true, reject any custom/user-supplied gRPC endpoints.
+// Only the pre-configured networks (mainnet, testnet, devnet) are allowed.
+// Setting lives under Meteor.settings.public so the client can also read it.
+let lockCustomEndpoints = (Meteor.settings.public && Meteor.settings.public.lockCustomEndpoints) === true
 
 // CSP nonce generation middleware
 WebApp.connectHandlers.use((req, res, next) => {
@@ -45,7 +56,7 @@ WebApp.connectHandlers.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com cdn.jsdelivr.net fonts.cdnfonts.com",
     "font-src 'self' data: cdn.jsdelivr.net fonts.gstatic.com fonts.cdnfonts.com",
     "img-src 'self' data:",
-    "connect-src 'self' data: https: wss: ws:",
+    "connect-src 'self' data: https://nft-linter.theqrl.org",
   ].join('; ')
 
   res.setHeader('Content-Security-Policy', cspHeader)
@@ -206,9 +217,9 @@ const loadGrpcClient = (endpoint, callback) => {
               }
               // Now read the saved qrl.proto file so we can calculate a hash from it
               fs.readFile(qrlProtoFilePath, (errR, contents) => {
-                if (fsErr) {
-                  console.log(fsErr)
-                  throw fsErr
+                if (errR) {
+                  console.log(errR)
+                  throw errR
                 }
 
                 // Calculate the hash of the qrl.proto file contents
@@ -463,7 +474,7 @@ const checkNetworkHealth = (userNetwork, callback) => {
     if (networkHealthy === true) {
       callback(null, true)
     } else {
-      callback(true, { error: 'Network unhealthy' })
+      callback({ error: `Network '${userNetwork}' is not yet healthy — nodes may still be connecting` }, null)
     }
   } catch (err) {
     console.log('Exception in checkNetworkHealth')
@@ -570,6 +581,15 @@ const qrlApi = (api, request, callback) => {
     }
   } else {
     // Handle custom and localhost connections
+    if (lockCustomEndpoints) {
+      const myError = errorCallback(
+        'Custom gRPC endpoints are disabled (lockCustomEndpoints is enabled)',
+        'Cannot connect to custom API endpoint',
+        '**ERROR/api/locked**'
+      )
+      callback(myError, null)
+      return
+    }
     console.log('Handling custom API call')
     const apiEndpoint = normalizeEndpoint(request.network)
     // Delete network from request object
@@ -2774,13 +2794,30 @@ const ledgerCreateMessageTx = async (sourceAddr, fee, message, cb) => {
 Meteor.methods({
   async connectToNode(request) {
     check(request, String)
+    if (lockCustomEndpoints) {
+      // Build allowlist of gRPC endpoints from pre-configured networks
+      const allowedEndpoints = new Set()
+      for (const network of DEFAULT_NETWORKS) {
+        for (const node of (network.nodes || [])) {
+          if (node.grpc) allowedEndpoints.add(node.grpc)
+        }
+      }
+      if (!allowedEndpoints.has(request)) {
+        throw new Meteor.Error(403, 'Custom gRPC endpoints are disabled (lockCustomEndpoints is enabled)')
+      }
+    }
     const response = await connectToNodeAsync(request)
     return response
   },
   async checkNetworkHealth(request) {
     check(request, String)
-    const response = await checkNetworkHealthAsync(request)
-    return response
+    try {
+      const response = await checkNetworkHealthAsync(request)
+      return response
+    } catch (err) {
+      const msg = (err && err.error) || 'Network unhealthy'
+      throw new Meteor.Error('network-unhealthy', msg)
+    }
   },
   async status(request) {
     check(request, Object)
@@ -3014,7 +3051,7 @@ Meteor.methods({
               output.transaction.tx.signature.substring(0, 8),
               16
             ),
-            fee: output.transaction.tx.fe,
+            fee: output.transaction.tx.fee / SHOR_PER_QUANTA,
             block: output.transaction.header.block_number,
             timestamp: output.transaction.header.timestamp_seconds,
           }

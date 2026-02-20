@@ -75,8 +75,8 @@ app.on('ready', function() {
     icon: APP_ICON_PATH,
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: false,
-      sandbox: false,
+      contextIsolation: true,
+      sandbox: true,
     },
   });
     loading.removeMenu();
@@ -197,8 +197,8 @@ app.on('ready', function() {
       backgroundColor: '#ffffff',
       webPreferences: {
         nodeIntegration: false,
-        contextIsolation: false,
-        sandbox: false,
+        contextIsolation: true,
+        sandbox: true,
       },
     });
 

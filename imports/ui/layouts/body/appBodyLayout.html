@@ -119,7 +119,10 @@
                   {{#if customNodeCreated}}
                   <option value="custom">{{customNodeName}}</option>
                   {{/if}}
+                  {{#if lockCustomEndpoints}}
+                  {{else}}
                   <option value="add">+ Add Custom Node</option>
+                  {{/if}}
                 </select>
               </fieldset>
               <p class="mt-2 text-xs text-base-content/70 truncate">{{nodeName}}</p>
@@ -320,7 +323,10 @@
               {{#if customNodeCreated}}
               <option value="custom">{{customNodeName}}</option>
               {{/if}}
+              {{#if lockCustomEndpoints}}
+              {{else}}
               <option value="add">+ Add Custom Node</option>
+              {{/if}}
             </select>
           </fieldset>
         </div>

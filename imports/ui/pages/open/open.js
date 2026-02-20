@@ -122,7 +122,7 @@ async function getLedgerPubkey(callback) {
     createTransport().then(QrlLedger => {
       QrlLedger.publickey().then(data => {
         if (ledgerReturnedError()) {
-          console.log(`-- Ledger error: ${error} --`)
+          console.log(`-- Ledger error: ${data} --`)
           showError()
         } else {
           console.log('> Got Ledger Public Key from WebUSB')
