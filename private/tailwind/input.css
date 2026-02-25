@@ -399,3 +399,114 @@
     z-index: 1;
   }
 }
+
+/* ── Unlayered overrides (beat DaisyUI's @layer utilities) ── */
+
+/* Transaction type left borders */
+.border-type-transfer { border-left: 4px solid #FFA729; }
+.border-type-received { border-left: 4px solid #4AAFFF; }
+.border-type-coinbase { border-left: 4px solid #10B981; }
+.border-type-token    { border-left: 4px solid #4AAFFF; }
+.border-type-message  { border-left: 4px solid #A78BFA; }
+.border-type-slave    { border-left: 4px solid #F472B6; }
+.border-type-lattice  { border-left: 4px solid #34D399; }
+.border-type-multisig { border-left: 4px solid #FB923C; }
+
+/* Transaction type icon containers */
+.tx-direction-icon.tx-icon-transfer {
+  border: 1px solid color-mix(in oklab, #FFA729 40%, transparent);
+  background-color: color-mix(in oklab, #FFA729 16%, transparent);
+  color: #FFA729;
+}
+.tx-direction-icon.tx-icon-received {
+  border: 1px solid color-mix(in oklab, #4AAFFF 40%, transparent);
+  background-color: color-mix(in oklab, #4AAFFF 16%, transparent);
+  color: #4AAFFF;
+}
+.tx-direction-icon.tx-icon-coinbase {
+  border: 1px solid color-mix(in oklab, #10B981 40%, transparent);
+  background-color: color-mix(in oklab, #10B981 16%, transparent);
+  color: #10B981;
+}
+.tx-direction-icon.tx-icon-token {
+  border: 1px solid color-mix(in oklab, #4AAFFF 40%, transparent);
+  background-color: color-mix(in oklab, #4AAFFF 16%, transparent);
+  color: #4AAFFF;
+}
+.tx-direction-icon.tx-icon-message {
+  border: 1px solid color-mix(in oklab, #A78BFA 40%, transparent);
+  background-color: color-mix(in oklab, #A78BFA 16%, transparent);
+  color: #A78BFA;
+}
+.tx-direction-icon.tx-icon-slave {
+  border: 1px solid color-mix(in oklab, #F472B6 40%, transparent);
+  background-color: color-mix(in oklab, #F472B6 16%, transparent);
+  color: #F472B6;
+}
+.tx-direction-icon.tx-icon-lattice {
+  border: 1px solid color-mix(in oklab, #34D399 40%, transparent);
+  background-color: color-mix(in oklab, #34D399 16%, transparent);
+  color: #34D399;
+}
+.tx-direction-icon.tx-icon-multisig {
+  border: 1px solid color-mix(in oklab, #FB923C 40%, transparent);
+  background-color: color-mix(in oklab, #FB923C 16%, transparent);
+  color: #FB923C;
+}
+
+/* Badge pills (verify-tx page) */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.badge-pill-transfer {
+  border: 1px solid color-mix(in oklab, #FFA729 40%, transparent);
+  background-color: color-mix(in oklab, #FFA729 14%, transparent);
+  color: #FFA729;
+}
+.badge-pill-coinbase {
+  border: 1px solid color-mix(in oklab, #10B981 40%, transparent);
+  background-color: color-mix(in oklab, #10B981 14%, transparent);
+  color: #10B981;
+}
+.badge-pill-token {
+  border: 1px solid color-mix(in oklab, #4AAFFF 40%, transparent);
+  background-color: color-mix(in oklab, #4AAFFF 14%, transparent);
+  color: #4AAFFF;
+}
+.badge-pill-message {
+  border: 1px solid color-mix(in oklab, #A78BFA 40%, transparent);
+  background-color: color-mix(in oklab, #A78BFA 14%, transparent);
+  color: #A78BFA;
+}
+.badge-pill-slave {
+  border: 1px solid color-mix(in oklab, #F472B6 40%, transparent);
+  background-color: color-mix(in oklab, #F472B6 14%, transparent);
+  color: #F472B6;
+}
+.badge-pill-lattice {
+  border: 1px solid color-mix(in oklab, #34D399 40%, transparent);
+  background-color: color-mix(in oklab, #34D399 14%, transparent);
+  color: #34D399;
+}
+.badge-pill-multisig {
+  border: 1px solid color-mix(in oklab, #FB923C 40%, transparent);
+  background-color: color-mix(in oklab, #FB923C 14%, transparent);
+  color: #FB923C;
+}
+.badge-pill-confirmed {
+  border: 1px solid color-mix(in oklab, #10B981 40%, transparent);
+  background-color: color-mix(in oklab, #10B981 14%, transparent);
+  color: #10B981;
+}
+.badge-pill-unconfirmed {
+  border: 1px solid color-mix(in oklab, #FDE047 40%, transparent);
+  background-color: color-mix(in oklab, #FDE047 14%, transparent);
+  color: #FDE047;
+}

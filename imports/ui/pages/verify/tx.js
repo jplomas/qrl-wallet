@@ -219,6 +219,34 @@ Template.appVerifyTxid.helpers({
       return false
     }
   },
+  badgeClass() {
+    try {
+      if (this.explorer.type === 'TRANSFER') return 'badge-pill-transfer'
+      if (this.explorer.type === 'TRANSFER TOKEN') return 'badge-pill-token'
+      if (this.explorer.type === 'CREATE TOKEN') return 'badge-pill-token'
+      if (this.explorer.type === 'COINBASE') return 'badge-pill-coinbase'
+      if (this.explorer.type === 'MESSAGE' || this.explorer.type === 'DOCUMENT_NOTARISATION') return 'badge-pill-message'
+      if (this.explorer.type === 'SLAVE') return 'badge-pill-slave'
+      if (this.explorer.type === 'LATTICE PK') return 'badge-pill-lattice'
+      return 'badge-pill-multisig'
+    } catch (e) {
+      return 'badge-pill-transfer'
+    }
+  },
+  borderClass() {
+    try {
+      if (this.explorer.type === 'TRANSFER') return 'border-type-transfer'
+      if (this.explorer.type === 'TRANSFER TOKEN') return 'border-type-token'
+      if (this.explorer.type === 'CREATE TOKEN') return 'border-type-token'
+      if (this.explorer.type === 'COINBASE') return 'border-type-coinbase'
+      if (this.explorer.type === 'MESSAGE' || this.explorer.type === 'DOCUMENT_NOTARISATION') return 'border-type-message'
+      if (this.explorer.type === 'SLAVE') return 'border-type-slave'
+      if (this.explorer.type === 'LATTICE PK') return 'border-type-lattice'
+      return 'border-type-multisig'
+    } catch (e) {
+      return 'border-type-transfer'
+    }
+  },
   isToken() {
     try {
       if (this.explorer.type === 'CREATE TOKEN') {

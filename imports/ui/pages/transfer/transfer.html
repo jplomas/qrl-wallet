@@ -784,33 +784,32 @@
             <div class="space-y-2">
               <h4>Your Public QRL Address</h4>
               <div class="alert visible">
-                <p class="wordBreak">{{openedAddress}}</p>
+                <p class="font-mono text-sm break-all">{{openedAddress}}</p>
               </div>
             </div>
 
           </form>
           <br /><br />
           <div class="grid gap-4">
-            <div class="text-center qr-code-container">
+            <div class="flex justify-center">
+              <div class="qr-code-container inline-block rounded-xl bg-white p-4"></div>
             </div>
           </div>
 
           <div class="grid gap-4">
-            <div class="text-left">
+            <div class="text-left mt-10">
               <h4>Address Details</h4>
-              <div class="badge badge-outline" style="color: #000 !important;">Signature Scheme: {{addressValidation.signatureScheme}}</div>
-              <br /><br />
-              <div class="badge badge-outline" style="color: #000 !important;">Tree Height: {{addressValidation.height}}</div>
-              <br /><br />
-              <div class="badge badge-outline" style="color: #000 !important;">Total Signatures: {{addressValidation.totalSignatures}}</div>
-              <br /><br />
-              <div class="badge badge-outline" style="color: #000 !important;">Hash Function: {{addressValidation.hashFunction}}</div>
-              <br /><br />
+              <div class="flex flex-wrap gap-2">
+                <span class="badge-pill badge-pill-transfer"><span class="text-base-content/50 mr-1">Signature Scheme</span> {{addressValidation.signatureScheme}}</span>
+                <span class="badge-pill badge-pill-transfer"><span class="text-base-content/50 mr-1">Tree Height</span> {{addressValidation.height}}</span>
+                <span class="badge-pill badge-pill-transfer"><span class="text-base-content/50 mr-1">Total Signatures</span> {{addressValidation.totalSignatures}}</span>
+                <span class="badge-pill badge-pill-transfer"><span class="text-base-content/50 mr-1">Hash Function</span> {{addressValidation.hashFunction}}</span>
+              </div>
             </div>
           </div>
           {{#if isSeedWallet}}
           <div class="grid gap-4">
-            <div class="text-left">
+            <div class="text-left mt-4">
               <h4>View Recovery Seed</h4>
               <div class="text-center">
                 <button id="showRecoverySeed" class="btn btn-md btn-error" style="width: 100%">Click to View</button>
@@ -959,11 +958,11 @@
       {{#if addressHasTransactions}}
         {{#each addressTransactions}}
           {{#if isTransfer this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm {{#if isMyAddress this.addr_from}}border-type-transfer{{else}}border-type-received{{/if}}" data-txhash="{{this.tx.transaction_hash}}">
             {{#if isMyAddress this.addr_from}}
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+            <span class="tx-direction-icon tx-icon-transfer"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg></span>
             {{else}}
-            <span class="tx-direction-icon tx-direction-incoming"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7L7 17M7 17H15M7 17V9" /></svg></span>
+            <span class="tx-direction-icon tx-icon-received"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg></span>
             {{/if}}
             <div class="">
               <div class="transactionTitle">
@@ -991,8 +990,8 @@
           {{/if}}
 
           {{#if isTokenCreation this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-token" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-token"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="8" cy="8" r="3.5" stroke-width="2"/><circle cx="16" cy="16" r="3.5" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M13 8h4M8 13v4"/></svg></span>
             <div class="">
               <div class="transactionTitle">
                 {{#if isCreateNFT}}
@@ -1022,11 +1021,11 @@
           {{/if}}
 
           {{#if isTokenTransfer this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-token" data-txhash="{{this.tx.transaction_hash}}">
             {{#if isMyAddress this.addr_from}}
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+            <span class="tx-direction-icon tx-icon-token"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="8" cy="8" r="3.5" stroke-width="2"/><circle cx="16" cy="16" r="3.5" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M13 8h4M8 13v4"/></svg></span>
             {{else}}
-            <span class="tx-direction-icon tx-direction-incoming"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7L7 17M7 17H15M7 17V9" /></svg></span>
+            <span class="tx-direction-icon tx-icon-token"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="8" cy="8" r="3.5" stroke-width="2"/><circle cx="16" cy="16" r="3.5" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M13 8h4M8 13v4"/></svg></span>
             {{/if}}
             <div class="">
               <div class="transactionTitle">
@@ -1055,8 +1054,8 @@
           {{/if}}
 
           {{#if isCoinbaseTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-incoming"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 7L7 17M7 17H15M7 17V9" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-coinbase" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-coinbase"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Coinbase Received
@@ -1073,8 +1072,8 @@
           {{/if}}
 
           {{#if isSlaveTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-slave" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-slave"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v4m0 0l-3 3m3-3l3 3M6 11v4m0 0l-2 2m2-2l2 2M18 11v4m0 0l-2 2m2-2l2 2" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Slave Transaction
@@ -1091,8 +1090,8 @@
           {{/if}}
 
           {{#if isLatticePKTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-lattice" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-lattice"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16M8 4v16M16 4v16" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Lattice Public Key
@@ -1109,8 +1108,8 @@
           {{/if}}
 
           {{#if isCreateMultiSigTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-multisig" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-multisig"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Multisig Create
@@ -1127,8 +1126,8 @@
           {{/if}}
 
           {{#if isSpendMultiSigTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-multisig" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-multisig"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Multisig Spend
@@ -1145,8 +1144,8 @@
           {{/if}}
 
           {{#if isVoteMultiSigTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-multisig" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-multisig"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Multisig Vote
@@ -1163,8 +1162,8 @@
           {{/if}}
 
           {{#if isMessageTxn this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-message" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-message"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Message
@@ -1181,8 +1180,8 @@
           {{/if}}
 
           {{#if isDocumentNotarisation this.tx.transactionType}}
-          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm" data-txhash="{{this.tx.transaction_hash}}">
-            <span class="tx-direction-icon tx-direction-outgoing"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7M17 7H9M17 7V15" /></svg></span>
+          <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-message" data-txhash="{{this.tx.transaction_hash}}">
+            <span class="tx-direction-icon tx-icon-message"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></span>
             <div class="">
               <div class="transactionTitle">
                 Document Notarisation
@@ -1283,8 +1282,8 @@
             <div class="text-lg font-semibold">
               Warning: Keep this information private at all times!
             </div>
-            <p class="wordBreak"><strong>Mnemonic Phrase:</strong> {{recoverySeed.mnemonic}}</p>
-            <p class="wordBreak"><strong>Hexseed:</strong> {{recoverySeed.hexseed}}</p>
+            <p class="break-words text-sm"><strong>Mnemonic Phrase:</strong> {{recoverySeed.mnemonic}}</p>
+            <p class="break-all font-mono text-sm"><strong>Hexseed:</strong> {{recoverySeed.hexseed}}</p>
             <p class="wordBreak"><strong>Private key QR:</strong><div id="recQR" width="150" height="150"></div>
             </p>
           </div>
