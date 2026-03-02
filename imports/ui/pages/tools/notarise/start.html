@@ -128,10 +128,12 @@
         </select>
       </fieldset>
 
+      {{#unless isLedgerWallet}}
       <fieldset class="fieldset w-full">
         <legend class="fieldset-legend">Additional Text <i id="additional_text_max_length">(Max Length: 45)</i></legend>
         <input type="text" id="additional_text" autocomplete="off" class="input input-bordered w-full bg-base-100">
       </fieldset>
+      {{/unless}}
 
       <div class="divider text-sm font-semibold">Transaction</div>
 

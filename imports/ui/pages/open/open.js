@@ -9,7 +9,7 @@ import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 import async from 'async'
 import './open.html'
 
-import { isElectrified, createTransport, ledgerReturnedError } from '../../../startup/client/functions'
+import { isElectrified, createTransport } from '../../../startup/client/functions'
 import { getPrimaryWalletRecord, getWalletTypeLabel } from '../../lib/wallet-format'
 import {
   buildEncryptedEnvelope,
@@ -19,6 +19,19 @@ import {
   loadWalletDataForUse,
   normalizeWalletRecord,
 } from '../../lib/wallet-crypto'
+
+const LEDGER_OPEN_TIMEOUT_MS = 10000
+const LEDGER_LOCK_RESPONSE_CODES = [26628, 28160, 28161]
+const LEDGER_USB_RESET_ERROR_PATTERNS = [
+  'cannot open device with path',
+  'cannot open device',
+  'failed to open device',
+  'resource busy',
+  'ledger usb transport appears stale',
+  '"needsusbreset":true',
+]
+let ledgerOpenAttemptId = 0
+let ledgerOpenTimeoutHandle = null
 
 Template.appAddressOpen.onCreated(() => {
   Session.set('modalEventTriggered', false)
@@ -37,6 +50,119 @@ function clearLedgerDetails() {
   Session.set('ledgerDetailsAppVersion', '')
   Session.set('ledgerDetailsLibraryVersion', '')
   Session.set('ledgerDetailsPkHex', '')
+}
+
+function clearLedgerOpenTimeout() {
+  if (ledgerOpenTimeoutHandle !== null) {
+    Meteor.clearTimeout(ledgerOpenTimeoutHandle)
+    ledgerOpenTimeoutHandle = null
+  }
+}
+
+function startLedgerOpenTimeout(openAttemptId) {
+  clearLedgerOpenTimeout()
+  ledgerOpenTimeoutHandle = Meteor.setTimeout(() => {
+    if (openAttemptId !== ledgerOpenAttemptId) {
+      return
+    }
+    ledgerOpenAttemptId += 1
+    clearLedgerOpenTimeout()
+    hideElement('readingLedger')
+    showElement('ledgerReadTimeout')
+  }, LEDGER_OPEN_TIMEOUT_MS)
+}
+
+function hideLedgerStatusMessages() {
+  hideElement('ledgerReadError')
+  hideElement('ledgerReadTimeout')
+  hideElement('ledgerUsbResetError')
+  hideElement('ledgerLockedError')
+  hideElement('ledgerUninitialisedError')
+  hideElement('ledgerKeysGeneratingError')
+  hideElement('ledgerKeysGeneratingDeviceError')
+  hideElement('ledgerKeysGeneratingComplete')
+}
+
+function getLedgerResponseCode(ledgerResponse) {
+  const responseCode = parseInt((ledgerResponse && ledgerResponse.return_code), 10)
+  return Number.isInteger(responseCode) ? responseCode : 0
+}
+
+function ledgerResponseIndicatesLocked(ledgerResponse) {
+  if (!ledgerResponse) {
+    return false
+  }
+  if (LEDGER_LOCK_RESPONSE_CODES.includes(getLedgerResponseCode(ledgerResponse))) {
+    return true
+  }
+  const errorMessage = String(ledgerResponse.error_message || '').toLowerCase()
+  return (
+    errorMessage.includes('lock')
+    || errorMessage.includes('conditions of use not satisfied')
+    || errorMessage.includes('app does not seem to be open')
+  )
+}
+
+function getLedgerErrorText(error) {
+  if (!error) {
+    return ''
+  }
+  if (typeof error === 'string') {
+    return error.toLowerCase()
+  }
+
+  const fragments = []
+  if (typeof error.message === 'string') {
+    fragments.push(error.message)
+  }
+  if (typeof error.reason === 'string') {
+    fragments.push(error.reason)
+  }
+  if (typeof error.details === 'string') {
+    fragments.push(error.details)
+  } else if (error.details) {
+    try {
+      fragments.push(JSON.stringify(error.details))
+    } catch {
+      // Ignore details serialization errors.
+    }
+  }
+
+  return fragments.join(' ').toLowerCase()
+}
+
+function ledgerErrorIndicatesLocked(error) {
+  if (!error) {
+    return false
+  }
+  if (LEDGER_LOCK_RESPONSE_CODES.includes(parseInt(error.statusCode, 10))) {
+    return true
+  }
+  const errorMessage = getLedgerErrorText(error)
+  return (
+    errorMessage.includes('lock')
+    || errorMessage.includes('conditions of use not satisfied')
+    || errorMessage.includes('app does not seem to be open')
+  )
+}
+
+function ledgerErrorNeedsUsbReset(error) {
+  const errorText = getLedgerErrorText(error)
+  if (!errorText) {
+    return false
+  }
+  return LEDGER_USB_RESET_ERROR_PATTERNS.some((pattern) => errorText.includes(pattern))
+}
+
+function ledgerResponseNeedsUsbReset(response) {
+  if (!response || typeof response !== 'object') {
+    return false
+  }
+  const errorText = String(response.error_message || '').toLowerCase()
+  if (!errorText) {
+    return false
+  }
+  return LEDGER_USB_RESET_ERROR_PATTERNS.some((pattern) => errorText.includes(pattern))
 }
 
 function syncWalletTypeTabs(selectedType) {
@@ -63,8 +189,27 @@ function closeAllOpenDialogs() {
 }
 
 function showError() {
+  clearLedgerOpenTimeout()
   hideElement('readingLedger')
   showElement('ledgerReadError')
+}
+
+function showLedgerLockedError() {
+  clearLedgerOpenTimeout()
+  hideElement('readingLedger')
+  showElement('ledgerLockedError')
+}
+
+function showLedgerReadTimeout() {
+  clearLedgerOpenTimeout()
+  hideElement('readingLedger')
+  showElement('ledgerReadTimeout')
+}
+
+function showLedgerUsbResetError() {
+  clearLedgerOpenTimeout()
+  hideElement('readingLedger')
+  showElement('ledgerUsbResetError')
 }
 
 async function getLedgerState(callback) {
@@ -73,32 +218,22 @@ async function getLedgerState(callback) {
     Meteor.call('ledgerGetState', [], (err, data) => {
       console.log('> Got Ledger Nano State from USB')
       console.log(data)
-      callback(null, data)
+      callback(err, data)
     })
   } else {
     createTransport().then(QrlLedger => {
       QrlLedger.get_state().then(data => {
         console.log('> Got Ledger Nano State from WebUSB')
         console.log(data)
-        if (ledgerReturnedError()) {
-          console.log(`-- Ledger error: ${data.error_message} --`)
-          showError()
-        } else {
-          callback(null, data)
-        }
+        callback(null, data)
       }, e => {
-        ledgerReturnedError()
-        showError()
+        callback(e, null)
       }).catch(e => {
         console.log(`-- Ledger error: ${e} --`)
-        showError()
-      }).catch(e => {
-        console.log(`-- Ledger error: ${e} --`)
-        showError()
+        callback(e, null)
       })
     }, e => {
-      ledgerReturnedError()
-      showError()
+      callback(e, null)
     })
   }
 }
@@ -106,6 +241,18 @@ async function getLedgerPubkey(callback) {
   console.log('-- Getting QRL Ledger Nano Public Key --')
   if (isElectrified()) {
     Meteor.call('ledgerPublicKey', [], (err, data) => {
+      if (err) {
+        callback(err, data)
+        return
+      }
+      if (ledgerResponseIndicatesLocked(data)) {
+        callback(new Error('Ledger locked while requesting public key'), data)
+        return
+      }
+      if (!data || !data.public_key) {
+        callback(new Error('Invalid Ledger public key response'), data)
+        return
+      }
       console.log('> Got Ledger Public Key from USB')
       // Convert Uint to hex
       const pkHex = Buffer.from(data.public_key).toString('hex')
@@ -121,35 +268,33 @@ async function getLedgerPubkey(callback) {
   } else {
     createTransport().then(QrlLedger => {
       QrlLedger.publickey().then(data => {
-        if (ledgerReturnedError()) {
-          console.log(`-- Ledger error: ${data} --`)
-          showError()
-        } else {
-          console.log('> Got Ledger Public Key from WebUSB')
-          // Convert Uint to hex
-          const pkHex = Buffer.from(data.public_key).toString('hex')
-          // Get address from pk
-          const qAddress = QRLLIB.getAddress(pkHex)
-          const ledgerQAddress = `Q${qAddress}`
-          Session.set('ledgerDetailsAddress', ledgerQAddress)
-          Session.set('ledgerDetailsPkHex', pkHex)
-          const walletCodeInput = document.getElementById('walletCode')
-          if (walletCodeInput) walletCodeInput.value = ledgerQAddress
-          callback(null, data)
+        if (ledgerResponseIndicatesLocked(data)) {
+          callback(new Error('Ledger locked while requesting public key'), data)
+          return
         }
+        if (!data || !data.public_key) {
+          callback(new Error('Invalid Ledger public key response'), data)
+          return
+        }
+        console.log('> Got Ledger Public Key from WebUSB')
+        // Convert Uint to hex
+        const pkHex = Buffer.from(data.public_key).toString('hex')
+        // Get address from pk
+        const qAddress = QRLLIB.getAddress(pkHex)
+        const ledgerQAddress = `Q${qAddress}`
+        Session.set('ledgerDetailsAddress', ledgerQAddress)
+        Session.set('ledgerDetailsPkHex', pkHex)
+        const walletCodeInput = document.getElementById('walletCode')
+        if (walletCodeInput) walletCodeInput.value = ledgerQAddress
+        callback(null, data)
       }, e => {
-        ledgerReturnedError()
-        showError()
+        callback(e, null)
       }).catch(e => {
         console.log(`-- Ledger error: ${e} --`)
-        showError()
-      }).catch(e => {
-        console.log(`-- Ledger error: ${e} --`)
-        showError()
+        callback(e, null)
       })
     }, e => {
-      ledgerReturnedError()
-      showError()
+      callback(e, null)
     })
   }
 }
@@ -158,6 +303,10 @@ async function getLedgerVersion(callback) {
   console.log('-- Getting QRL Ledger Nano App Version --')
   if (isElectrified()) {
     Meteor.call('ledgerAppVersion', [], (err, data) => {
+      if (err) {
+        callback(err, data)
+        return
+      }
       console.log('> Got Ledger App Version from USB')
       Session.set(
         'ledgerDetailsAppVersion',
@@ -166,12 +315,19 @@ async function getLedgerVersion(callback) {
       callback(null, data)
     })
   } else {
-    const QrlLedger = await createTransport()
-    QrlLedger.get_version().then(data => {
-      console.log('> Got Ledger App Version from WebUSB')
-      Session.set('ledgerDetailsAppVersion', data.version)
-      console.log(data)
-      callback()
+    createTransport().then(QrlLedger => {
+      QrlLedger.get_version().then(data => {
+        console.log('> Got Ledger App Version from WebUSB')
+        Session.set('ledgerDetailsAppVersion', data.version)
+        console.log(data)
+        callback(null, data)
+      }, e => {
+        callback(e, null)
+      }).catch(e => {
+        callback(e, null)
+      })
+    }, e => {
+      callback(e, null)
     })
   }
 }
@@ -179,40 +335,78 @@ async function getLedgerVersion(callback) {
 async function getLedgerLibraryVersion(callback) {
   if (isElectrified()) {
     Meteor.call('ledgerAppVersion', [], (err, data) => {
+      if (err) {
+        callback(err, data)
+        return
+      }
       console.log('> Got Ledger Library Version from USB')
       Session.set('ledgerDetailsLibraryVersion', data)
       callback(null, data)
     })
   } else {
-    const QrlLedger = await createTransport()
-    QrlLedger.get_version().then(data => {
-      console.log('> Got Ledger Library Version from WebUSB')
-      Session.set('ledgerDetailsLibraryVersion', data.version)
-      callback(data)
+    createTransport().then(QrlLedger => {
+      QrlLedger.get_version().then(data => {
+        console.log('> Got Ledger Library Version from WebUSB')
+        Session.set('ledgerDetailsLibraryVersion', data.version)
+        callback(null, data)
+      }, e => {
+        callback(e, null)
+      }).catch(e => {
+        callback(e, null)
+      })
+    }, e => {
+      callback(e, null)
     })
   }
 }
 
-function refreshLedger() {
+function refreshLedger(openAttemptId) {
   // Clear Ledger State
   clearLedgerDetails()
 
   getLedgerState(function (err, data) {
-    if (err || data.return_code === 14) {
-      // We timed out requesting data from ledger
-      hideElement('readingLedger')
-      showElement('ledgerReadError')
+    if (openAttemptId !== ledgerOpenAttemptId) {
+      return
+    }
+
+    if (ledgerErrorNeedsUsbReset(err) || ledgerResponseNeedsUsbReset(data)) {
+      showLedgerUsbResetError()
+      return
+    }
+
+    if (ledgerErrorIndicatesLocked(err) || ledgerResponseIndicatesLocked(data)) {
+      showLedgerLockedError()
+      return
+    }
+
+    if (err) {
+      console.log('-- Ledger error while getting state --')
+      console.log(err)
+      showError()
+      return
+    }
+
+    if (getLedgerResponseCode(data) === 14) {
+      // Ledger timed out with no response.
+      showLedgerReadTimeout()
+      return
+    }
+
+    if (!data) {
+      showError()
     } else {
       // We were able to connect to Ledger Device and get state
-      const ledgerDeviceState = data.state
-      const ledgerDeviceXmssIndex = data.xmss_index
+      const ledgerDeviceState = parseInt(data.state, 10)
+      const ledgerDeviceXmssIndex = parseInt(data.xmss_index, 10)
       if (ledgerDeviceState === 0) {
         // Uninitialised Device - prompt user to init device in QRL ledger app
+        clearLedgerOpenTimeout()
         hideElement('readingLedger')
         showElement('ledgerUninitialisedError')
       } else if (ledgerDeviceState === 1) {
         // Device is in key generation state - prompt user to continue generating keys
         // and show progress on screen
+        clearLedgerOpenTimeout()
         hideElement('readingLedger')
         showElement('ledgerKeysGeneratingError')
         // Now continually check status
@@ -251,10 +445,19 @@ function refreshLedger() {
             // Get the public key from the ledger so we can determine Q address
             function (cb) {
               getLedgerPubkey(function (pubErr, pubData) { // eslint-disable-line
+                if (openAttemptId !== ledgerOpenAttemptId) {
+                  return
+                }
                 if (pubErr) {
-                  // We timed out requesting data from ledger
-                  hideElement('readingLedger')
-                  showElement('ledgerReadError')
+                  if (ledgerErrorNeedsUsbReset(pubErr) || ledgerResponseNeedsUsbReset(pubData)) {
+                    showLedgerUsbResetError()
+                  } else if (ledgerErrorIndicatesLocked(pubErr) || ledgerResponseIndicatesLocked(pubData)) {
+                    showLedgerLockedError()
+                  } else if (getLedgerResponseCode(pubData) === 14) {
+                    showLedgerReadTimeout()
+                  } else {
+                    showError()
+                  }
                 } else {
                   cb()
                 }
@@ -262,18 +465,49 @@ function refreshLedger() {
             },
             // Get the Ledger Device app version
             function (cb) {
-              getLedgerVersion(function (data) {
+              getLedgerVersion(function (versionErr, versionData) {
+                if (openAttemptId !== ledgerOpenAttemptId) {
+                  return
+                }
+                if (versionErr) {
+                  if (ledgerErrorNeedsUsbReset(versionErr) || ledgerResponseNeedsUsbReset(versionData)) {
+                    showLedgerUsbResetError()
+                  } else if (ledgerErrorIndicatesLocked(versionErr) || ledgerResponseIndicatesLocked(versionData)) {
+                    showLedgerLockedError()
+                  } else if (getLedgerResponseCode(versionData) === 14) {
+                    showLedgerReadTimeout()
+                  } else {
+                    showError()
+                  }
+                  return
+                }
                 cb()
               })
             },
             // Get the local QrlLedger JS library version
             function (cb) {
-              getLedgerLibraryVersion(function (data) {
+              getLedgerLibraryVersion(function (libraryErr, libraryData) {
+                if (openAttemptId !== ledgerOpenAttemptId) {
+                  return
+                }
+                if (libraryErr) {
+                  if (ledgerErrorNeedsUsbReset(libraryErr) || ledgerResponseNeedsUsbReset(libraryData)) {
+                    showLedgerUsbResetError()
+                  } else if (ledgerErrorIndicatesLocked(libraryErr) || ledgerResponseIndicatesLocked(libraryData)) {
+                    showLedgerLockedError()
+                  } else if (getLedgerResponseCode(libraryData) === 14) {
+                    showLedgerReadTimeout()
+                  } else {
+                    showError()
+                  }
+                  return
+                }
                 cb()
               })
             },
           ], () => {
             console.log('Ledger Device Successfully Opened')
+            clearLedgerOpenTimeout()
             hideElement('readingLedger')
             const thisAddress = Session.get('ledgerDetailsAddress')
             const status = {}
@@ -283,7 +517,7 @@ function refreshLedger() {
             status.walletType = 'ledger'
             status.address = thisAddress
             status.pubkey = Session.get('ledgerDetailsPkHex')
-            status.xmss_index = ledgerDeviceXmssIndex
+            status.xmss_index = Number.isInteger(ledgerDeviceXmssIndex) ? ledgerDeviceXmssIndex : 0
             status.menuHidden = ''
             status.menuHiddenInverse = 'display: none'
             Session.set('walletStatus', status)
@@ -295,13 +529,18 @@ function refreshLedger() {
             FlowRouter.go(path)
           }) // async.waterfall
         }) // waitForQRLLIB
+      } else {
+        showError()
       } // device state check
     } // if(err) else
   }) // getLedgerState
 }
 
 function updateWalletType() {
+  clearLedgerOpenTimeout()
   clearLedgerDetails()
+  hideLedgerStatusMessages()
+  hideElement('readingLedger')
   const walletTypeElement = document.getElementById('walletType')
   if (!walletTypeElement) {
     return
@@ -565,12 +804,8 @@ async function unlockWallet() {
 function clickUnlockButton() {
   showElement('unlocking')
   hideElement('unlockError')
-  hideElement('ledgerReadError')
-  hideElement('ledgerUninitialisedError')
+  hideLedgerStatusMessages()
   hideElement('noWalletFileSelected')
-  hideElement('ledgerKeysGeneratingError')
-  hideElement('ledgerKeysGeneratingDeviceError')
-  hideElement('ledgerKeysGeneratingComplete')
   setTimeout(() => { unlockWallet() }, 50)
 }
 
@@ -579,16 +814,15 @@ Template.appAddressOpen.events({
     clickUnlockButton()
   },
   'click #ledgerRefreshButton': () => {
+    ledgerOpenAttemptId += 1
+    const thisAttemptId = ledgerOpenAttemptId
+    startLedgerOpenTimeout(thisAttemptId)
     showElement('readingLedger')
     hideElement('unlocking')
     hideElement('unlockError')
-    hideElement('ledgerReadError')
-    hideElement('ledgerUninitialisedError')
+    hideLedgerStatusMessages()
     hideElement('noWalletFileSelected')
-    hideElement('ledgerKeysGeneratingError')
-    hideElement('ledgerKeysGeneratingDeviceError')
-    hideElement('ledgerKeysGeneratingComplete')
-    setTimeout(() => { refreshLedger() }, 1000)
+    setTimeout(() => { refreshLedger(thisAttemptId) }, 1000)
   },
   'change #walletType': () => {
     updateWalletType()

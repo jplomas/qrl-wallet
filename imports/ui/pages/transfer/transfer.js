@@ -3,7 +3,7 @@ import { FlowRouter } from 'meteor/ostrio:flow-router-extra'
 /* global _, QRLLIB, XMSS_OBJECT, LocalStore, QrlLedger, isElectrified, selectedNetwork,loadAddressTransactions, getTokenBalances, updateBalanceField, refreshTransferPage */
 /* global pkRawToB32Address, hexOrB32, rawToHexOrB32, anyAddressToRawAddress, stringToBytes, binaryToBytes, bytesToString, bytesToHex, hexToBytes, toBigendianUint64BytesUnsigned, numberToString, decimalToBinary */
 /* global getMnemonicOfFirstAddress, getXMSSDetails, isWalletFileDeprecated, waitForQRLLIB, addressForAPI, binaryToQrlAddress, toUint8Vector, concatenateTypedArrays, getQrlProtoShasum */
-/* global resetWalletStatus, passwordPolicyValid, countDecimals, supportedBrowser, wrapMeteorCall, getBalance, otsIndexUsed, ledgerHasNoTokenSupport, resetLocalStorageState, nodeReturnedValidResponse */
+/* global resetWalletStatus, passwordPolicyValid, countDecimals, supportedBrowser, wrapMeteorCall, getBalance, otsIndexUsed, ledgerHasNoTokenSupport, resetLocalStorageState, nodeReturnedValidResponse, advanceSeedOtsAfterRelayFailure */
 /* global POLL_TXN_RATE, POLL_MAX_CHECKS, DEFAULT_NETWORKS, findNetworkData, SHOR_PER_QUANTA, WALLET_VERSION, QRLPROTO_SHA256,  */
 
 import JSONFormatter from 'json-formatter-js'
@@ -97,6 +97,11 @@ function enableSendButton() {
   $('#confirmTransaction').html(`${confirmIcon}${confirmLabel}`)
 }
 
+function transferSupportsMessage() {
+  const xmssDetails = getXMSSDetails() || {}
+  return xmssDetails.walletType !== 'ledger'
+}
+
 function generateTransaction() {
   // Get to/amount details
   const sendFrom = anyAddressToRawAddress(Session.get('transferFromAddress'))
@@ -170,11 +175,15 @@ function generateTransaction() {
   }
 
   // add message field if present
-  const userMessage = document.getElementById('message').value
+  const messageInput = document.getElementById('message')
+  const userMessage = messageInput ? messageInput.value : ''
   let messageBytes = null
-  if (userMessage.length > 0) {
+  if (transferSupportsMessage() && userMessage.length > 0) {
     messageBytes = stringToBytes(userMessage)
     request.message_data = messageBytes
+  } else if (!transferSupportsMessage() && messageInput) {
+    // Ledger transfers do not support message payload signing.
+    messageInput.value = ''
   }
 
   wrapMeteorCall('transferCoins', request, (err, res) => {
@@ -220,8 +229,7 @@ function generateTransaction() {
         otsKey: otsKey, // eslint-disable-line
       }
 
-      if (userMessage.length > 0) {
-        messageBytes = stringToBytes(userMessage)
+      if (messageBytes && messageBytes.length > 0) {
         confirmation.message_data = messageBytes
       }
 
@@ -250,7 +258,9 @@ function generateTransaction() {
 
 function confirmTransaction() {
   const tx = Session.get('transactionConfirmationResponse')
-  tx.message_data = Session.get('transactionConfirmationMessage')
+  tx.message_data = transferSupportsMessage()
+    ? Session.get('transactionConfirmationMessage')
+    : null
   // Set OTS Key Index for seed wallets
   if (getXMSSDetails().walletType === 'seed') {
     XMSS_OBJECT.setIndex(
@@ -326,20 +336,31 @@ function confirmTransaction() {
 
     console.log('Txn Hash: ', txnHash)
 
-    // add ,message
-    tx.message_data = Session.get('transactionConfirmationMessage')
+    // add message for supported wallet types
+    tx.message_data = transferSupportsMessage()
+      ? Session.get('transactionConfirmationMessage')
+      : null
 
     // Prepare gRPC call
     tx.network = selectedNetwork()
 
     wrapMeteorCall('confirmTransaction', tx, (err, res) => {
-      if (res.error) {
+      if (err || !res || res.error) {
         $('#transactionConfirmation').hide()
         $('#transactionFailed').show()
 
-        Session.set('transactionFailed', res.error)
+        const errorMessage = (res && res.error)
+          || (err && (err.reason || err.message))
+          || 'Failed to relay transaction'
+        Session.set('transactionFailed', errorMessage)
+        advanceSeedOtsAfterRelayFailure('transactionConfirmation')
+        enableSendButton()
       } else {
-        Session.set('transactionHash', txnHash)
+        const relayedTxnHash = (res.response && res.response.txnHash) || txnHash
+        if (relayedTxnHash !== txnHash) {
+          console.log(`Overriding local tx hash with node tx hash: ${relayedTxnHash}`)
+        }
+        Session.set('transactionHash', relayedTxnHash)
         Session.set('transactionSignature', res.response.signature)
         Session.set('transactionRelayedThrough', res.relayed)
 
@@ -382,15 +403,24 @@ function confirmTransaction() {
           'confirmTransaction',
           Session.get('ledgerTransaction'),
           (err, res) => {
-            if (res.error) {
+            if (err || !res || res.error) {
               $('#transactionConfirmation').hide()
               $('#transactionFailed').show()
 
-              Session.set('transactionFailed', res.error)
+              const errorMessage = (res && res.error)
+                || (err && (err.reason || err.message))
+                || 'Failed to relay transaction'
+              Session.set('transactionFailed', errorMessage)
+              enableSendButton()
             } else {
+              const localLedgerTxnHash = Session.get('ledgerTransactionHash')
+              const relayedTxnHash = (res.response && res.response.txnHash) || localLedgerTxnHash
+              if (relayedTxnHash !== localLedgerTxnHash) {
+                console.log(`Overriding local tx hash with node tx hash: ${relayedTxnHash}`)
+              }
               Session.set(
                 'transactionHash',
-                Session.get('ledgerTransactionHash')
+                relayedTxnHash
               )
               Session.set('transactionSignature', res.response.signature)
               Session.set('transactionRelayedThrough', res.relayed)
@@ -713,13 +743,21 @@ function confirmTokenTransfer() {
     tx.network = selectedNetwork()
 
     wrapMeteorCall('confirmTokenTransfer', tx, (err, res) => {
-      if (res.error) {
+      if (err || !res || res.error) {
         $('#tokenCreationConfirmation').hide()
         $('#transactionFailed').show()
 
-        Session.set('transactionFailed', res.error)
+        const errorMessage = (res && res.error)
+          || (err && (err.reason || err.message))
+          || 'Failed to relay transaction'
+        Session.set('transactionFailed', errorMessage)
+        advanceSeedOtsAfterRelayFailure('tokenTransferConfirmation')
       } else {
-        Session.set('transactionHash', txnHash)
+        const relayedTxnHash = (res.response && res.response.txnHash) || txnHash
+        if (relayedTxnHash !== txnHash) {
+          console.log(`Overriding local tx hash with node tx hash: ${relayedTxnHash}`)
+        }
+        Session.set('transactionHash', relayedTxnHash)
         Session.set('transactionSignature', res.response.signature)
         Session.set('transactionRelayedThrough', res.relayed)
 
@@ -740,7 +778,14 @@ function confirmTokenTransfer() {
 
 function setRawDetail() {
   try {
-    const myJSON = Session.get('txhash').transaction
+    const txhashResponse = Session.get('txhash')
+    if (!txhashResponse || !txhashResponse.transaction) {
+      const pendingMessage = 'Transaction details are not available yet.'
+      $('#quantaJsonbox').text(pendingMessage)
+      $('#tokenJsonbox').text(pendingMessage)
+      return
+    }
+    const myJSON = txhashResponse.transaction
     const formatter = new JSONFormatter(myJSON)
     $('#quantaJsonbox').html(formatter.render())
     $('#tokenJsonbox').html(formatter.render())
@@ -1014,6 +1059,10 @@ Template.appTransfer.onRendered(() => {
   })
   loadAddressTransactions(getXMSSDetails().address, 1)
   updateBalanceField()
+  if (!transferSupportsMessage()) {
+    $('#message').val('')
+    $('#messageField').hide()
+  }
 
   // Warn if user is has opened the 0 byte address (test mode on Ledger)
   if (
@@ -1074,6 +1123,9 @@ Template.appTransfer.events({
     FlowRouter.go(`/verify-txid/${txhash}`)
   },
   'click #showMessageField': (event) => {
+    if (!transferSupportsMessage()) {
+      return
+    }
     event.preventDefault()
     event.stopPropagation()
     $('#messageField').show()
@@ -1347,6 +1399,9 @@ Template.appTransfer.helpers({
   },
   providerID() {
     return `0x${this.nft.id}`
+  },
+  canUseTransferMessage() {
+    return transferSupportsMessage()
   },
   includesMessage() {
     try {

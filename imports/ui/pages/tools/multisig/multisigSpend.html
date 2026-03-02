@@ -236,7 +236,7 @@
   <form method="dialog" class="modal-backdrop"><button>close</button></form>
 </dialog>
   
-  <dialog class="modal" id="ledgerConfirmationModal">
+  <dialog class="modal ledger-signing-modal" id="ledgerConfirmationModal">
   <div class="modal-box wallet-modal-box">
     <div class="text-lg font-semibold">Send {{transactionConfirmationAmount}} Quanta?</div>
         <div class="">
@@ -246,7 +246,7 @@
             </div>
             <div class="">
               <div class="description pl-10">
-                <p>Your transaction requires confirmation on your Ledger Nano S device. Check the details on the Ledger match those displayed below then click the sign option on your device:</p>
+                <p>Your transaction requires confirmation on your Ledger device. Check the details on the Ledger match those displayed below then click the sign option on your device:</p>
                 <div class="container">
                   <table class="table table-zebra w-full">
                     <tr>
@@ -296,11 +296,11 @@
           </div>
       
           <div id="signOnLedgerTimeout" class="rounded-xl border border-base-300 bg-base-100 p-4 bg-neutral text-neutral-content" style="display: none;">
-            <h3>Timed out waiting for response from Ledger Nano. To save an OTS Key, you should reject the transaction on your Ledger and try again.</h3>
+            <h3>Timed out waiting for response from Ledger device. To save an OTS Key, you should reject the transaction on your Ledger device and try again.</h3>
           </div>
       
           <div id="signOnLedgerError" class="rounded-xl border border-base-300 bg-base-100 p-4 bg-neutral text-neutral-content" style="display: none;">
-            <h3>Error communicating with Ledger Nano. To save an OTS Key, you should reject the transaction on your Ledger and try again.</h3>
+            <h3>Error communicating with Ledger device. To save an OTS Key, you should reject the transaction on your Ledger device and try again.</h3>
           </div>
       
           <p id="ledgerHasConfirmed" style="display:none;">Transaction signed on Ledger <span class="text-success">✔</span></p>

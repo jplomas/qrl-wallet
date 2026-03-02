@@ -2744,6 +2744,9 @@
       gap: calc(0.25rem * 2);
     }
   }
+  .mt-0\.5 {
+    margin-top: calc(var(--spacing) * 0.5);
+  }
   .mt-1 {
     margin-top: calc(var(--spacing) * 1);
   }
@@ -3125,6 +3128,9 @@
   .w-7 {
     width: calc(var(--spacing) * 7);
   }
+  .w-8 {
+    width: calc(var(--spacing) * 8);
+  }
   .w-10 {
     width: calc(var(--spacing) * 10);
   }
@@ -3411,6 +3417,9 @@
     @supports (color: color-mix(in lab, red, red)) {
       border-color: color-mix(in oklab, var(--color-secondary) 25%, transparent);
     }
+  }
+  .border-success {
+    border-color: var(--color-success);
   }
   .border-success\/40 {
     border-color: var(--color-success);
@@ -4188,6 +4197,11 @@
       padding-inline: calc(var(--spacing) * 6);
     }
   }
+  .md\:w-auto {
+    @media (width >= 48rem) {
+      width: auto;
+    }
+  }
   .md\:grid-cols-2 {
     @media (width >= 48rem) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4218,9 +4232,19 @@
       grid-template-columns: 1fr 170px auto;
     }
   }
+  .md\:grid-cols-\[170px_minmax\(0\,1fr\)\] {
+    @media (width >= 48rem) {
+      grid-template-columns: 170px minmax(0,1fr);
+    }
+  }
   .md\:flex-row {
     @media (width >= 48rem) {
       flex-direction: row;
+    }
+  }
+  .md\:gap-3 {
+    @media (width >= 48rem) {
+      gap: calc(var(--spacing) * 3);
     }
   }
   .md\:text-3xl {
@@ -4391,6 +4415,7 @@
     background-clip: padding-box, padding-box, padding-box;
   }
   .transactionRecord {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
     align-items: flex-start;
     border: 1px solid var(--color-base-300);
     @supports (color: color-mix(in lab, red, red)) {
@@ -4402,6 +4427,11 @@
     }
     border-radius: var(--radius-box, 0.75rem);
     transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .transactionRecord > :nth-child(2) {
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
   }
   .tx-direction-icon {
     display: inline-flex;
@@ -4481,9 +4511,20 @@
       color: color-mix(in oklab, var(--color-base-content) 72%, transparent);
     }
   }
+  .transactionRecord .transactionAddress.transactionHashEllipsis {
+    display: block;
+    width: min(100%, 52ch);
+    max-width: min(100%, 52ch);
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
   .transactionRecord .floatright {
-    margin-left: auto;
+    margin-left: 0;
     align-self: flex-start;
+    justify-self: end;
+    min-width: 11.5rem;
+    text-align: right;
     padding-top: 0.1rem;
     white-space: nowrap;
   }
@@ -4811,6 +4852,266 @@
   border: 1px solid color-mix(in oklab, #FDE047 40%, transparent);
   background-color: color-mix(in oklab, #FDE047 14%, transparent);
   color: #FDE047;
+}
+.wordBreak {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.unbreakable {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.no-wrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.ledger-signing-modal .modal-box.wallet-modal-box {
+  width: min(100%, 54rem);
+  max-width: 54rem;
+  border: 1px solid var(--color-base-300);
+  @supports (color: color-mix(in lab, red, red)) {
+    border: 1px solid color-mix(in oklab, var(--color-base-300) 88%, transparent);
+  }
+  border-top: 2px solid var(--color-primary);
+  @supports (color: color-mix(in lab, red, red)) {
+    border-top: 2px solid color-mix(in oklab, var(--color-primary) 58%, var(--color-secondary) 42%);
+  }
+  border-radius: 1rem;
+  background-image: linear-gradient(var(--color-base-100), var(--color-base-100)), radial-gradient(circle at 8% -30%, rgba(255, 167, 41, 0.2), transparent 52%), radial-gradient(circle at 84% -22%, rgba(74, 175, 255, 0.16), transparent 48%);
+  @supports (color: color-mix(in lab, red, red)) {
+    background-image: linear-gradient(color-mix(in oklab, var(--color-base-100) 96%, transparent), color-mix(in oklab, var(--color-base-100) 96%, transparent)), radial-gradient(circle at 8% -30%, rgba(255, 167, 41, 0.2), transparent 52%), radial-gradient(circle at 84% -22%, rgba(74, 175, 255, 0.16), transparent 48%);
+  }
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+}
+.ledger-signing-modal .modal-box > .text-lg.font-semibold:first-child {
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.01em;
+}
+.ledger-signing-modal .grid.gap-4 {
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .ledger-signing-modal .grid.gap-4 {
+    grid-template-columns: minmax(0, 11.5rem) minmax(0, 1fr);
+    gap: 1rem;
+  }
+}
+.ledger-signing-modal img.svg {
+  width: min(100%, 11rem);
+  margin-inline: auto;
+  display: block;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.35));
+}
+.ledger-signing-modal .description {
+  padding-left: 0 !important;
+}
+.ledger-signing-modal .description > p {
+  margin-bottom: 0.75rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--color-base-content);
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 88%, transparent);
+  }
+}
+.ledger-signing-modal .container {
+  border: 1px solid var(--color-base-300);
+  @supports (color: color-mix(in lab, red, red)) {
+    border: 1px solid color-mix(in oklab, var(--color-base-300) 82%, transparent);
+  }
+  border-radius: 0.75rem;
+  background-color: var(--color-base-200);
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(in oklab, var(--color-base-200) 94%, transparent);
+  }
+  overflow-x: auto;
+}
+.ledger-signing-modal .table {
+  margin: 0;
+}
+.ledger-signing-modal .table td {
+  vertical-align: top;
+  padding: 0.65rem 0.75rem;
+  border-color: var(--color-base-300);
+  @supports (color: color-mix(in lab, red, red)) {
+    border-color: color-mix(in oklab, var(--color-base-300) 75%, transparent);
+  }
+}
+.ledger-signing-modal .table td:first-child {
+  width: 7rem;
+  min-width: 7rem;
+}
+.ledger-signing-modal .table td:last-child {
+  min-width: 0;
+}
+.ledger-signing-modal .badge.badge-outline.fw {
+  font-size: 0.66rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-base-content);
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 92%, transparent);
+  }
+  border-color: var(--color-base-300);
+  @supports (color: color-mix(in lab, red, red)) {
+    border-color: color-mix(in oklab, var(--color-base-300) 95%, transparent);
+  }
+  background-color: var(--color-base-300);
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(in oklab, var(--color-base-300) 30%, transparent);
+  }
+}
+.ledger-signing-modal .modal-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: stretch;
+  justify-items: stretch;
+}
+.ledger-signing-modal .modal-action > * {
+  margin: 0;
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .ledger-signing-modal .modal-action {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+}
+.ledger-signing-modal #awaitingLedgerConfirmation, .ledger-signing-modal #signOnLedgerRejected, .ledger-signing-modal #signOnLedgerTimeout, .ledger-signing-modal #signOnLedgerError, .ledger-signing-modal #ledgerHasConfirmed {
+  grid-column: 1 / -1;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem !important;
+}
+.ledger-signing-modal #awaitingLedgerConfirmation {
+  border: 1px solid var(--color-secondary) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    border: 1px solid color-mix(in oklab, var(--color-secondary) 42%, var(--color-base-300)) !important;
+  }
+  background-color: var(--color-secondary) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(in oklab, var(--color-secondary) 16%, var(--color-base-200)) !important;
+  }
+  color: var(--color-base-content) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 96%, transparent) !important;
+  }
+}
+.ledger-signing-modal #signOnLedgerRejected, .ledger-signing-modal #signOnLedgerError {
+  border: 1px solid var(--color-error) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    border: 1px solid color-mix(in oklab, var(--color-error) 56%, var(--color-base-300)) !important;
+  }
+  background-color: var(--color-error) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(in oklab, var(--color-error) 16%, var(--color-base-200)) !important;
+  }
+  color: var(--color-base-content) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 97%, transparent) !important;
+  }
+}
+.ledger-signing-modal #signOnLedgerTimeout {
+  border: 1px solid var(--color-warning) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    border: 1px solid color-mix(in oklab, var(--color-warning) 52%, var(--color-base-300)) !important;
+  }
+  background-color: var(--color-warning) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(in oklab, var(--color-warning) 15%, var(--color-base-200)) !important;
+  }
+  color: var(--color-base-content) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 95%, transparent) !important;
+  }
+}
+.ledger-signing-modal #ledgerHasConfirmed {
+  border: 1px solid var(--color-success);
+  @supports (color: color-mix(in lab, red, red)) {
+    border: 1px solid color-mix(in oklab, var(--color-success) 45%, var(--color-base-300));
+  }
+  background-color: var(--color-success);
+  @supports (color: color-mix(in lab, red, red)) {
+    background-color: color-mix(in oklab, var(--color-success) 16%, var(--color-base-200));
+  }
+  color: var(--color-base-content);
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 98%, transparent);
+  }
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+}
+.ledger-signing-modal #awaitingLedgerConfirmation h3, .ledger-signing-modal #signOnLedgerRejected h3, .ledger-signing-modal #signOnLedgerTimeout h3, .ledger-signing-modal #signOnLedgerError h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  font-weight: 600;
+  color: inherit;
+}
+.jsonbox {
+  border-color: var(--color-base-300) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    border-color: color-mix(in oklab, var(--color-base-300) 90%, transparent) !important;
+  }
+  background-image: linear-gradient(var(--color-base-100), var(--color-base-100)), radial-gradient(circle at 10% -30%, rgba(74, 175, 255, 0.14), transparent 56%);
+  @supports (color: color-mix(in lab, red, red)) {
+    background-image: linear-gradient(color-mix(in oklab, var(--color-base-100) 96%, transparent), color-mix(in oklab, var(--color-base-100) 96%, transparent)), radial-gradient(circle at 10% -30%, rgba(74, 175, 255, 0.14), transparent 56%);
+  }
+}
+.jsonbox .json-formatter-row, .jsonbox .json-formatter-row a, .jsonbox .json-formatter-row a:hover, .jsonbox .json-formatter-dark.json-formatter-row, .jsonbox .json-formatter-dark.json-formatter-row a, .jsonbox .json-formatter-dark.json-formatter-row a:hover {
+  color: var(--color-base-content) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 94%, transparent) !important;
+  }
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-decoration: none;
+}
+.jsonbox .json-formatter-row .json-formatter-string, .jsonbox .json-formatter-row .json-formatter-stringifiable, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-string, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-stringifiable {
+  color: var(--color-success) !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.jsonbox .json-formatter-row .json-formatter-number, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-number {
+  color: var(--color-secondary) !important;
+}
+.jsonbox .json-formatter-row .json-formatter-boolean, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-boolean {
+  color: var(--color-warning) !important;
+}
+.jsonbox .json-formatter-row .json-formatter-null, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-null {
+  color: var(--color-warning) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-warning) 75%, var(--color-base-content) 25%) !important;
+  }
+}
+.jsonbox .json-formatter-row .json-formatter-undefined, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-undefined, .jsonbox .json-formatter-row .json-formatter-function, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-function {
+  color: var(--color-error) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-error) 82%, var(--color-base-content) 18%) !important;
+  }
+}
+.jsonbox .json-formatter-row .json-formatter-key, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-key {
+  color: var(--color-info) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-info) 84%, var(--color-base-content) 16%) !important;
+  }
+  word-break: break-word;
+}
+.jsonbox .json-formatter-row .json-formatter-bracket, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-bracket, .jsonbox .json-formatter-row .json-formatter-toggler, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-toggler {
+  color: var(--color-base-content) !important;
+  @supports (color: color-mix(in lab, red, red)) {
+    color: color-mix(in oklab, var(--color-base-content) 72%, transparent) !important;
+  }
+}
+.jsonbox .json-formatter-row .json-formatter-url, .jsonbox .json-formatter-dark.json-formatter-row .json-formatter-url {
+  color: var(--color-primary) !important;
+  text-decoration: underline;
 }
 @layer base;
 @layer base {

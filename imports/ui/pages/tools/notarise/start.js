@@ -78,7 +78,8 @@ function notariseDocument() {
   const notaryDocuments = $('#notaryDocument').prop('files')
   const notaryDocument = notaryDocuments[0]
   const hashFunction = document.getElementById('hashFunction').value
-  const additionalText = document.getElementById('additional_text').value
+  const additionalTextInput = document.getElementById('additional_text')
+  const additionalText = additionalTextInput ? additionalTextInput.value : ''
 
   const reader = new FileReader()
   reader.onloadend = function () {
@@ -136,14 +137,16 @@ function notariseDocument() {
 function initialiseFormValidation() {
   const validationRules = {}
 
-  validationRules['additional_text'] = {
-    id: 'additional_text',
-    rules: [
-      {
-        type: 'maxLength[' + additionalTextMaxLengthValue + ']',
-        prompt: 'The max length of the additional message is ' + additionalTextMaxLengthValue + ' bytes.',
-      },
-    ],
+  if (getXMSSDetails().walletType !== 'ledger') {
+    validationRules['additional_text'] = {
+      id: 'additional_text',
+      rules: [
+        {
+          type: 'maxLength[' + additionalTextMaxLengthValue + ']',
+          prompt: 'The max length of the additional message is ' + additionalTextMaxLengthValue + ' bytes.',
+        },
+      ],
+    }
   }
 
   // Now set fee and otskey validation rules
@@ -209,7 +212,10 @@ Template.appNotariseStart.events({
     const selectedFunction = document.getElementById('hashFunction').value
     if (selectedFunction === 'SHA256') {
       additionalTextMaxLengthValue = 45
-      document.getElementById('additional_text_max_length').innerHTML = '(Max Length: 45)'
+      const additionalTextMaxLength = document.getElementById('additional_text_max_length')
+      if (additionalTextMaxLength) {
+        additionalTextMaxLength.innerHTML = '(Max Length: 45)'
+      }
     }
     initialiseFormValidation()
   },

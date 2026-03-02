@@ -15,6 +15,7 @@ const TOOLS = [
     description: 'Create your own QRT.',
     category: 'asset',
     badge: 'Asset',
+    ledgerIncompatible: true,
   },
   {
     href: '/tools/notarise/start',
@@ -51,6 +52,7 @@ const TOOLS = [
     description: 'Multisignature wallet functionality.',
     category: 'advanced',
     badge: 'Advanced',
+    ledgerIncompatible: true,
   },
   {
     href: '/tools/addTokens',
@@ -65,6 +67,7 @@ const TOOLS = [
     description: 'Create a quantum-resistant non-fungible token.',
     category: 'asset',
     badge: 'Asset',
+    ledgerIncompatible: true,
   },
 ]
 
@@ -155,11 +158,12 @@ function renderToolCard(tool) {
   ])
 }
 
-function createToolsVueApp(tools) {
+function createToolsVueApp(tools, options = {}) {
   return {
     setup() {
       const query = ref('')
       const selectedCategory = ref('all')
+      const showLedgerInfo = options.isLedgerWallet === true
 
       const categories = ['all', ...new Set(tools.map((tool) => tool.category))]
 
@@ -183,6 +187,7 @@ function createToolsVueApp(tools) {
         filteredTools,
         query,
         selectedCategory,
+        showLedgerInfo,
       }
     },
     render() {
@@ -194,6 +199,11 @@ function createToolsVueApp(tools) {
       const countLabel = `${this.filteredTools.length} tool${this.filteredTools.length === 1 ? '' : 's'}`
 
       return h('div', { class: 'space-y-4' }, [
+        this.showLedgerInfo
+          ? h('div', { class: 'alert alert-info' }, [
+            h('span', {}, 'Additional tools are available for Wallets opened from files or via hexseed/mnemonic'),
+          ])
+          : null,
         h('div', { class: 'card bg-base-200 border border-base-300' }, [
           h('div', { class: 'card-body p-4 sm:flex-row gap-3 items-center' }, [
             h('input', {
@@ -236,8 +246,12 @@ Template.appTools.onRendered(function onRendered() {
     isLedgerWallet = false
   }
 
-  const availableTools = TOOLS.filter((tool) => !tool.ledgerOnly || isLedgerWallet)
-  this.toolsVueApp = createApp(createToolsVueApp(availableTools))
+  const availableTools = TOOLS.filter((tool) => {
+    if (tool.ledgerOnly && !isLedgerWallet) return false
+    if (isLedgerWallet && tool.ledgerIncompatible) return false
+    return true
+  })
+  this.toolsVueApp = createApp(createToolsVueApp(availableTools, { isLedgerWallet }))
   this.toolsVueApp.mount(mountElement)
 })
 

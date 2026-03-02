@@ -11,6 +11,8 @@ const FORCE_SHOW_DELAY_MS = 12000;
 const CALLBACK_FALLBACK_DELAY_MS = 15000;
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 const APP_ICON_PATH = `${__dirname}/assets/${process.platform === 'darwin' ? 'qrl-mac.png' : 'qrl.png'}`;
+const ELECTRON_INSECURE_CSP_WARNING = 'Electron Security Warning (Insecure Content-Security-Policy)';
+let hasLoggedSuppressedCspWarning = false;
 
 function parseUrl(url) {
   try {
@@ -37,6 +39,10 @@ function openInSystemBrowser(url) {
       error: error && error.message ? error.message : error,
     });
   });
+}
+
+function isKnownCspConsoleWarning(message) {
+  return typeof message === 'string' && message.includes(ELECTRON_INSECURE_CSP_WARNING);
 }
 
 app.disableHardwareAcceleration();
@@ -217,6 +223,13 @@ app.on('ready', function() {
     });
 
     window.webContents.on('console-message', (event, level, message, line, sourceId) => {
+      if (isKnownCspConsoleWarning(message)) {
+        if (!hasLoggedSuppressedCspWarning) {
+          hasLoggedSuppressedCspWarning = true;
+          console.log('[renderer] suppressed known Electron CSP warning (unsafe-eval currently required by qrllib/protobuf runtime)');
+        }
+        return;
+      }
       const payload = { level, message, line, sourceId };
       if (level >= 2) {
         console.error('[renderer]', payload);

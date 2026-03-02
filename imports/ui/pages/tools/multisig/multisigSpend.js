@@ -2,7 +2,7 @@
 /* global getXMSSDetails, anyAddressToRawAddress, hexToBytes, SHOR_PER_QUANTA,
 selectedNetwork, wrapMeteorCall, nodeReturnedValidResponse, XMSS_OBJECT, concatenateTypedArrays,
 toUint8Vector, toBigendianUint64BytesUnsigned, binaryToBytes, POLL_TXN_RATE, POLL_MAX_CHECKS, DEFAULT_NETWORKS, hexOrB32,
-refreshTransferPage */
+refreshTransferPage, advanceSeedOtsAfterRelayFailure */
 
 import helpers from '@theqrl/explorer-helpers'
 import qrlAddressValdidator from '@theqrl/validate-qrl-address'
@@ -499,11 +499,16 @@ function confirmTransaction() {
     tx.network = selectedNetwork()
 
     wrapMeteorCall('confirmMultiSigSpend', tx, (err, res) => {
-      if (res.error) {
+      if (err || !res || res.error) {
         $('#transactionConfirmation').hide()
         $('#transactionFailed').show()
 
-        Session.set('transactionFailed', res.error)
+        const errorMessage = (res && res.error)
+          || (err && (err.reason || err.message))
+          || 'Failed to relay transaction'
+        Session.set('transactionFailed', errorMessage)
+        advanceSeedOtsAfterRelayFailure('transactionConfirmation')
+        enableSendButton()
       } else {
         Session.set('transactionHash', txnHash)
         Session.set('transactionSignature', res.response.signature)

@@ -6,7 +6,7 @@
       <div class="">
         <div class="alert alert-warning gap-3"> <div>
             <div class="text-lg font-semibold">
-              The address below should be displayed on your Ledger Nano S device.
+              The address below should be displayed on your Ledger device.
             </div>
             <p class="wordBreak"><strong>Address:</strong> {{transferFrom.address}}</p>
           </div>
@@ -250,7 +250,7 @@
   <form method="dialog" class="modal-backdrop"><button>close</button></form>
 </dialog>
 
-<dialog class="modal" id="ledgerConfirmationModal">
+<dialog class="modal ledger-signing-modal" id="ledgerConfirmationModal">
   <div class="modal-box wallet-modal-box">
     <div class="text-lg font-semibold">Send {{transactionConfirmationAmount}} Quanta?</div>
       <div class="">
@@ -260,7 +260,7 @@
           </div>
           <div class="">
             <div class="description pl-10">
-              <p>Your transaction requires confirmation on your Ledger Nano S device. Check the details on the Ledger match those displayed below then click the sign option on your device:</p>
+              <p>Your transaction requires confirmation on your Ledger device. Check the details on the Ledger match those displayed below then click the sign option on your device:</p>
               <div class="container">
                 <table class="table table-zebra w-full">
                   <tr>
@@ -310,11 +310,11 @@
         </div>
 
         <div id="signOnLedgerTimeout" class="rounded-xl border border-base-300 bg-base-100 p-4 bg-neutral text-neutral-content" style="display: none;">
-          <h3>Timed out waiting for response from Ledger Nano. To save an OTS Key, you should reject the transaction on your Ledger and try again.</h3>
+          <h3>Timed out waiting for response from Ledger device. To save an OTS Key, you should reject the transaction on your Ledger device and try again.</h3>
         </div>
 
         <div id="signOnLedgerError" class="rounded-xl border border-base-300 bg-base-100 p-4 bg-neutral text-neutral-content" style="display: none;">
-          <h3>Error communicating with Ledger Nano. To save an OTS Key, you should reject the transaction on your Ledger and try again.</h3>
+          <h3>Error communicating with Ledger device. To save an OTS Key, you should reject the transaction on your Ledger device and try again.</h3>
         </div>
 
         <p id="ledgerHasConfirmed" style="display:none;">Transaction signed on Ledger <span class="text-success">✔</span></p>
@@ -360,7 +360,9 @@
                 <div class="space-y-2 field">
                   <div class="flex items-center justify-between gap-3">
                     <label class="fieldset-legend m-0">Recipient</label>
+                    {{#if canUseTransferMessage}}
                     <button id="showMessageField" type="button" class="link link-primary text-sm">Add message</button>
+                    {{/if}}
                   </div>
                   <input type="text" id="to_1" name="to[]" placeholder="Recipient Address" autocomplete="off" class="input input-bordered w-full bg-base-100" />
                 </div>
@@ -369,7 +371,7 @@
                     <label class="fieldset-legend m-0">Message</label>
                     <button id="clearMessageField" type="button" class="link link-primary text-sm">Remove message</button>
                   </div>
-                  <input type="text" id="message" name="message" placeholder="Message (max 80 bytes)" autocomplete="off" class="input input-bordered w-full bg-base-100" />
+                  <input type="text" id="message" name="message" placeholder="Message (max 80 bytes)" autocomplete="off" class="input input-bordered w-full bg-base-100" {{ledgerWalletDisabled}} />
                 </div>
                 <fieldset class="fieldset w-full field">
                   <legend class="fieldset-legend">Amount</legend>
@@ -624,13 +626,17 @@
 
           <form>
             <div class="space-y-2">
-              <label>Recipient</label>
-              <div class="alert visible">
-                <p class="wordBreak">
-                  {{#each transactionConfirmation.outputs}}
-                    {{this.amount}} {{this.name}} -> {{# if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}<br /><br />
-                  {{/each}}
-                </p>
+              <label class="text-xs uppercase tracking-wide text-base-content/60">Recipients</label>
+              <div class="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2">
+                {{#each transactionConfirmation.outputs}}
+                <div class="rounded-lg border border-base-300 bg-base-200/70 p-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-semibold">{{this.amount}} {{this.name}}</div>
+                    <div class="text-xs text-base-content/60 shrink-0">To</div>
+                  </div>
+                  <p class="mt-1 font-mono text-xs leading-relaxed break-all">{{# if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}</p>
+                </div>
+                {{/each}}
               </div>
             </div>
           </form>
@@ -640,52 +646,59 @@
             Transaction Details
           </h4>
 
-          <div class="grid gap-4 grid-cols-1">
-            <div class="">
-              <span>Transaction Hash <a id="confirmedTransferTxnHash" href="{{nodeExplorerUrl}}/tx/{{transactionHash}}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer" class="wordBreak">{{transactionHash}}</a></span>
-              <br />
-              <span>Fee <a class="">{{transactionConfirmationFee}}</a> Quanta</span>
-              <br />
-              <span>OTS Key Index <a class="">{{transactionConfirmation.otsKey}}</a></span>
+          <div class="rounded-xl border border-base-300 bg-base-100 p-4 space-y-3">
+            <div class="grid gap-1 md:grid-cols-[170px_minmax(0,1fr)] md:gap-3">
+              <div class="text-xs uppercase tracking-wide text-base-content/60">Transaction Hash</div>
+              <a id="confirmedTransferTxnHash" href="{{nodeExplorerUrl}}/tx/{{transactionHash}}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer" class="font-mono text-xs leading-relaxed break-all block">{{transactionHash}}</a>
+            </div>
+            <div class="grid gap-1 md:grid-cols-[170px_minmax(0,1fr)] md:gap-3">
+              <div class="text-xs uppercase tracking-wide text-base-content/60">Fee</div>
+              <div class="text-sm">{{transactionConfirmationFee}} Quanta</div>
+            </div>
+            <div class="grid gap-1 md:grid-cols-[170px_minmax(0,1fr)] md:gap-3">
+              <div class="text-xs uppercase tracking-wide text-base-content/60">OTS Key Index</div>
+              <div class="text-sm font-medium">{{transactionConfirmation.otsKey}}</div>
             </div>
           </div>
 
-          <div class="grid gap-4 grid-cols-1">
-            <div class="">
-              <p id="transferSuccessMessage" style="word-wrap: break-word;">
-                Success! Your transaction has been relayed into the QRL network through the following nodes, and is pending validation.
-              </p>
+          <div class="alert gap-3">
+            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-success bg-success/15 text-success">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+            <p id="transferSuccessMessage" class="leading-relaxed break-words">
+              Success! Your transaction has been relayed into the QRL network through the following nodes, and is pending validation.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <div class="text-xs uppercase tracking-wide text-base-content/60">Relayed Through</div>
+            <div class="space-y-2">
+            {{#each transactionRelayedThrough}}
+              <div class="rounded-lg border border-base-300 bg-base-100 px-3 py-2 flex items-start gap-2">
+                <span class="text-success mt-0.5">✔</span>
+                <div class="font-mono text-xs leading-relaxed break-all min-w-0">{{this}}</div>
+              </div>
+            {{/each}}
             </div>
           </div>
 
-
-          <div class="">
-          {{#each transactionRelayedThrough}}
-            <div class="">
-              <span class="text-success">✔</span>
-              <div class="">
-                <div class="text-lg font-semibold">{{this}}</div>
+          <div id="relaying" class="rounded-xl border border-base-300 bg-base-100 p-4">
+            <div class="flex items-start gap-3">
+              <span class="loading loading-spinner loading-md mt-0.5"></span>
+              <div class="min-w-0">
+                <div id="loadingHeader" class="text-sm uppercase tracking-wide text-base-content/60">
+                  Validation
+                </div>
+                <p id="transferFinalTxnStatus" class="mt-1 leading-relaxed break-all">Transaction Status: {{transactionStatus}}</p>
               </div>
             </div>
-          {{/each}}
           </div>
 
-          <div id="relaying" class="alert gap-3">
-            <br /><br />
-            <span class="loading loading-spinner loading-md"></span>
-            <div class="">
-              <div id="loadingHeader" class="text-lg font-semibold">
-                Just a moment
-              </div>
-              <p id="transferFinalTxnStatus" class="wordBreak" style="word-wrap: break-word; word-break: break-all;">Transaction Status: {{transactionStatus}}</p>
-            </div>
-          </div>
-
-          <div class="grid gap-4 grid-cols-1">
-            <div class="">
-              <button id="quantaJsonClick" class="btn btn-sm jsonclick">Raw Transaction Details <span aria-hidden="true">▾</span></button>
-              <div id="quantaJsonbox" class="rounded-xl border border-base-300 bg-base-100 p-4 raised jsonbox json unbreakable" style="display: none"></div>
-            </div>
+          <div class="space-y-2">
+            <button id="quantaJsonClick" class="btn btn-sm jsonclick w-full md:w-auto">Raw Transaction Details <span aria-hidden="true">▾</span></button>
+            <div id="quantaJsonbox" class="rounded-xl border border-base-300 bg-base-100 p-4 raised jsonbox json break-all overflow-x-auto" style="display: none"></div>
           </div>
 
         </div>
@@ -709,13 +722,17 @@
 
           <form>
             <div class="space-y-2">
-              <label>Recipient</label>
-              <div class="alert visible">
-                <p class="wordBreak">
-                  {{#each tokenTransferConfirmation.outputs}}
-                    {{this.amount}} {{#if confirmationForNFT}}NFT{{else}}{{this.name}}{{/if}} -> {{# if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}<br /><br />
-                  {{/each}}
-                </p>
+              <label class="text-xs uppercase tracking-wide text-base-content/60">Recipients</label>
+              <div class="rounded-xl border border-base-300 bg-base-100 p-3 space-y-2">
+                {{#each tokenTransferConfirmation.outputs}}
+                <div class="rounded-lg border border-base-300 bg-base-200/70 p-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-sm font-semibold">{{this.amount}} {{#if confirmationForNFT}}NFT{{else}}{{this.name}}{{/if}}</div>
+                    <div class="text-xs text-base-content/60 shrink-0">To</div>
+                  </div>
+                  <p class="mt-1 font-mono text-xs leading-relaxed break-all">{{# if bech32}}{{this.address_b32}}{{else}}{{this.address_hex}}{{/if}}</p>
+                </div>
+                {{/each}}
               </div>
             </div>
 
@@ -726,53 +743,61 @@
             Transaction Details
           </h4>
 
-          <div class="grid gap-4 grid-cols-1">
-            <div class="">
-              <span>Transaction Hash <a id="confirmedTransferTokenTxnHash" href="{{nodeExplorerUrl}}/tx/{{transactionHash}}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer" class="wordBreak">{{transactionHash}}</a></span>
-              <br />
-              <span>Fee <a class="">{{tokenTransferConfirmation.fee}}</a> Quanta</span>
-              <br />
-              <span>OTS Key Index <a class="">{{tokenTransferConfirmation.otsKey}}</a></span>
+          <div class="rounded-xl border border-base-300 bg-base-100 p-4 space-y-3">
+            <div class="grid gap-1 md:grid-cols-[170px_minmax(0,1fr)] md:gap-3">
+              <div class="text-xs uppercase tracking-wide text-base-content/60">Transaction Hash</div>
+              <a id="confirmedTransferTokenTxnHash" href="{{nodeExplorerUrl}}/tx/{{transactionHash}}" target="_blank" rel="noopener noreferrer nofollow" referrerpolicy="no-referrer" class="font-mono text-xs leading-relaxed break-all block">{{transactionHash}}</a>
+            </div>
+            <div class="grid gap-1 md:grid-cols-[170px_minmax(0,1fr)] md:gap-3">
+              <div class="text-xs uppercase tracking-wide text-base-content/60">Fee</div>
+              <div class="text-sm">{{tokenTransferConfirmation.fee}} Quanta</div>
+            </div>
+            <div class="grid gap-1 md:grid-cols-[170px_minmax(0,1fr)] md:gap-3">
+              <div class="text-xs uppercase tracking-wide text-base-content/60">OTS Key Index</div>
+              <div class="text-sm font-medium">{{tokenTransferConfirmation.otsKey}}</div>
             </div>
           </div>
 
 
-          <div class="grid gap-4 grid-cols-1">
-            <div class="">
-              <p id="successMessage" style="word-wrap: break-word; word-break: break-all;">
-                Success! Your token transfer has been relayed into the QRL network through the following nodes, and is pending validation.
-              </p>
-            </div>
+          <div class="alert gap-3">
+            <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-success bg-success/15 text-success">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+            <p id="successMessage" class="leading-relaxed break-words">
+              Success! Your token transfer has been relayed into the QRL network through the following nodes, and is pending validation.
+            </p>
           </div>
 
 
-          <div class="">
-          {{#each transactionRelayedThrough}}
-            <div class="">
-              <span class="text-success">✔</span>
-              <div class="">
-                <div class="text-lg font-semibold">{{this}}</div>
+          <div class="space-y-2">
+            <div class="text-xs uppercase tracking-wide text-base-content/60">Relayed Through</div>
+            <div class="space-y-2">
+            {{#each transactionRelayedThrough}}
+              <div class="rounded-lg border border-base-300 bg-base-100 px-3 py-2 flex items-start gap-2">
+                <span class="text-success mt-0.5">✔</span>
+                <div class="font-mono text-xs leading-relaxed break-all min-w-0">{{this}}</div>
+              </div>
+            {{/each}}
+            </div>
+          </div>
+
+          <div id="relaying" class="rounded-xl border border-base-300 bg-base-100 p-4">
+            <div class="flex items-start gap-3">
+              <span class="loading loading-spinner loading-md mt-0.5"></span>
+              <div class="min-w-0">
+                <div id="loadingHeader" class="text-sm uppercase tracking-wide text-base-content/60">
+                  Validation
+                </div>
+                <p id="finalTokenXferTxnStatus" class="mt-1 leading-relaxed break-all">Transaction Status: {{transactionStatus}}</p>
               </div>
             </div>
-          {{/each}}
           </div>
 
-          <div id="relaying" class="alert gap-3">
-            <br /><br />
-            <span class="loading loading-spinner loading-md"></span>
-            <div class="">
-              <div id="loadingHeader" class="text-lg font-semibold">
-                Just a moment
-              </div>
-              <p id="finalTokenXferTxnStatus" class="wordbreak" style="word-wrap: break-word; word-break: break-all;">Transaction Status: {{transactionStatus}}</p>
-            </div>
-          </div>
-
-          <div class="grid gap-4 grid-cols-1">
-            <div class="">
-              <button id="tokenJsonClick" class="btn btn-sm jsonclick">Raw Transaction Details <span aria-hidden="true">▾</span></button>
-              <div id="tokenJsonbox" class="rounded-xl border border-base-300 bg-base-100 p-4 raised jsonbox json unbreakable" style="display: none"></div>
-            </div>
+          <div class="space-y-2">
+            <button id="tokenJsonClick" class="btn btn-sm jsonclick w-full md:w-auto">Raw Transaction Details <span aria-hidden="true">▾</span></button>
+            <div id="tokenJsonbox" class="rounded-xl border border-base-300 bg-base-100 p-4 raised jsonbox json break-all overflow-x-auto" style="display: none"></div>
           </div>
 
         </div>
@@ -1164,12 +1189,12 @@
           {{#if isMessageTxn this.tx.transactionType}}
           <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-message" data-txhash="{{this.tx.transaction_hash}}">
             <span class="tx-direction-icon tx-icon-message"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg></span>
-            <div class="">
+            <div class="min-w-0 flex-1">
               <div class="transactionTitle">
                 Message
                 <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
-              <p class="transactionAddress">
+              <p class="transactionAddress transactionHashEllipsis" style="display:block;max-width:52ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                 {{this.tx.transaction_hash}}
               </p>
             </div>
@@ -1182,12 +1207,12 @@
           {{#if isDocumentNotarisation this.tx.transactionType}}
           <div class="alert gap-3 transactionRecord cursor-pointer shadow-sm border-type-message" data-txhash="{{this.tx.transaction_hash}}">
             <span class="tx-direction-icon tx-icon-message"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></span>
-            <div class="">
+            <div class="min-w-0 flex-1">
               <div class="transactionTitle">
                 Document Notarisation
                 <span class="transactionTimestamp">{{this.timestamp}}</span>
               </div>
-              <p class="transactionAddress">
+              <p class="transactionAddress transactionHashEllipsis" style="display:block;max-width:52ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                 {{this.tx.transaction_hash}}
               </p>
             </div>

@@ -50,6 +50,8 @@ WebApp.connectHandlers.use((req, res, next) => {
   res.locals = res.locals || {}
   res.locals.cspNonce = nonce
 
+  // qrllib (Emscripten glue) and protobufjs runtime codegen still rely on
+  // dynamic function creation, so 'unsafe-eval' remains required for now.
   const cspHeader = [
     "default-src 'self'",
     `script-src 'self' 'unsafe-eval' 'nonce-${nonce}'`,
@@ -57,6 +59,11 @@ WebApp.connectHandlers.use((req, res, next) => {
     "font-src 'self' data: cdn.jsdelivr.net fonts.gstatic.com fonts.cdnfonts.com",
     "img-src 'self' data:",
     "connect-src 'self' data: https://nft-linter.theqrl.org",
+    "worker-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
   ].join('; ')
 
   res.setHeader('Content-Security-Policy', cspHeader)
@@ -140,6 +147,78 @@ const extractBlockHeightFromNodeState = (nodeState) => {
 function toBuffer(ab) {
   const buffer = Buffer.from(ab)
   return buffer
+}
+
+function toHexString(value) {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  if (typeof value === 'string') {
+    return value.startsWith('0x') ? value.slice(2) : value
+  }
+  try {
+    return Buffer.from(value).toString('hex')
+  } catch (err) {
+    return ''
+  }
+}
+
+function parseGrpcErrorCode(value) {
+  if (value === null || value === undefined || value === '') {
+    return 0
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0
+  }
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  try {
+    const codeBytes = Buffer.from(value)
+    if (codeBytes.length === 0) {
+      return 0
+    }
+    return codeBytes.readUIntBE(0, codeBytes.length)
+  } catch (err) {
+    return 0
+  }
+}
+
+function getPushTransactionError(response) {
+  if (!response || typeof response !== 'object') {
+    return 'Empty pushTransaction response'
+  }
+
+  const errorCode = parseGrpcErrorCode(
+    response.error_code || response.errorCode
+  )
+  const errorDescription = String(
+    response.error_description
+    || response.errorDescription
+    || ''
+  ).trim()
+  const hasTxHash = toHexString(response.tx_hash).length > 0
+
+  if (errorCode !== 0) {
+    if (errorDescription) {
+      return `Node rejected transaction (${errorCode}): ${errorDescription}`
+    }
+    return `Node rejected transaction (${errorCode})`
+  }
+
+  if (
+    errorDescription.length > 0
+    && errorDescription.toLowerCase() !== 'no error'
+  ) {
+    return `Node rejected transaction: ${errorDescription}`
+  }
+
+  if (!hasTxHash) {
+    return 'Missing tx hash in pushTransaction response'
+  }
+
+  return null
 }
 
 const errorCallback = (error, message, alert) => {
@@ -1222,20 +1301,23 @@ const confirmTransaction = (request, callback) => {
       function (wfcb) {
         try {
           qrlApi('pushTransaction', confirmTxn, (err, res) => {
-            console.log(
-              'Relayed Txn: ',
-              Buffer.from(res.tx_hash).toString('hex')
-            )
-
             if (err) {
               console.log(`Error:  ${err.message}`)
               txnResponse = { error: err.message, response: err.message }
               wfcb()
             } else {
+              const pushTxnError = getPushTransactionError(res)
+              if (pushTxnError) {
+                console.log(`Error: ${pushTxnError}`)
+                txnResponse = { error: pushTxnError, response: pushTxnError }
+                wfcb()
+                return
+              }
+
+              const pushedTxnHash = toHexString(res.tx_hash)
+              console.log('Relayed Txn: ', pushedTxnHash)
               const hashResponse = {
-                txnHash: Buffer.from(
-                  confirmTxn.transaction_signed.transaction_hash
-                ).toString('hex'),
+                txnHash: pushedTxnHash,
                 signature: Buffer.from(
                   confirmTxn.transaction_signed.signature
                 ).toString('hex'),
@@ -2684,56 +2766,111 @@ const ledgerCreateMessageTxAsync = (sourceAddr, fee, message) => {
 
 // Ledger Nano S Integration for Electron Desktop Apps
 
-let transport = null
+const LEDGER_USB_OPEN_PATH_ERROR = 'cannot open device with path'
 
-async function createTransport() {
-  transport = await TransportNodeHid.create(10)
-  const qrl = await new Qrl(transport)
-  return qrl
+const normalizeLedgerErrorMessage = (error) => {
+  if (!error) {
+    return 'Unknown Ledger error'
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  if (typeof error.details === 'string' && error.details.trim() !== '') {
+    return error.details
+  }
+  if (typeof error.message === 'string' && error.message.trim() !== '') {
+    return error.message
+  }
+  try {
+    return JSON.stringify(error)
+  } catch (stringifyError) {
+    return String(error)
+  }
+}
+
+const isLedgerUsbOpenPathError = (error) => {
+  const errorMessage = normalizeLedgerErrorMessage(error).toLowerCase()
+  return errorMessage.includes(LEDGER_USB_OPEN_PATH_ERROR)
+}
+
+const createLedgerMethodError = (methodName, error) => {
+  const rawMessage = normalizeLedgerErrorMessage(error)
+  const needsUsbReset = isLedgerUsbOpenPathError(error)
+  const recoveryHint = needsUsbReset
+    ? ' Ledger USB transport appears stale. Unplug and reinsert the device, unlock it, open the QRL app, and retry.'
+    : ''
+  return new Meteor.Error(
+    'ledger-device-error',
+    `${methodName} failed: ${rawMessage}${recoveryHint}`,
+    JSON.stringify({
+      method: methodName,
+      rawMessage,
+      needsUsbReset,
+      statusCode: error && error.statusCode ? error.statusCode : null,
+    })
+  )
+}
+
+const withLedgerTransport = async (operationName, action, cb) => {
+  let localTransport = null
+  try {
+    localTransport = await TransportNodeHid.create(10)
+    const qrlLedger = new Qrl(localTransport)
+    const response = await action(qrlLedger)
+    cb(null, response)
+  } catch (error) {
+    console.log(`-- ${operationName} failed --`)
+    console.log(error)
+    cb(error, null)
+  } finally {
+    if (localTransport) {
+      try {
+        await localTransport.close()
+      } catch (closeError) {
+        console.log(`-- ${operationName} transport close failed --`)
+        console.log(closeError)
+      }
+    }
+  }
 }
 
 const ledgerGetState = async (request, cb) => {
-  const QrlLedger = await createTransport()
-  await QrlLedger.get_state().then(async (data) => {
+  await withLedgerTransport('ledgerGetState', async (qrlLedger) => {
+    const data = await qrlLedger.get_state()
     console.log(data)
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+    return data
+  }, cb)
 }
+
 const ledgerPublicKey = async (request, cb) => {
-  const QrlLedger = await createTransport()
-  await QrlLedger.publickey().then(async (data) => {
+  await withLedgerTransport('ledgerPublicKey', async (qrlLedger) => {
+    const data = await qrlLedger.publickey()
     console.log(data)
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+    return data
+  }, cb)
 }
+
 const ledgerAppVersion = async (request, cb) => {
-  const QrlLedger = await createTransport()
-  await QrlLedger.get_version().then(async (data) => {
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+  await withLedgerTransport('ledgerAppVersion', async (qrlLedger) => {
+    const data = await qrlLedger.get_version()
+    return data
+  }, cb)
 }
+
 const ledgerLibraryVersion = async (request, cb) => {
-  const QrlLedger = await createTransport()
-  await QrlLedger.library_version().then(async (data) => {
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+  await withLedgerTransport('ledgerLibraryVersion', async (qrlLedger) => {
+    const data = await qrlLedger.library_version()
+    return data
+  }, cb)
 }
+
 const ledgerVerifyAddress = async (request, cb) => {
-  const QrlLedger = await createTransport()
-  await QrlLedger.viewAddress().then(async (data) => {
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+  await withLedgerTransport('ledgerVerifyAddress', async (qrlLedger) => {
+    const data = await qrlLedger.viewAddress()
+    return data
+  }, cb)
 }
+
 const ledgerCreateTx = async (sourceAddr, fee, destAddr, destAmount, cb) => {
   const sourceAddrBuffer = Buffer.from(sourceAddr)
   const feeBuffer = Buffer.from(fee)
@@ -2745,49 +2882,44 @@ const ledgerCreateTx = async (sourceAddr, fee, destAddr, destAmount, cb) => {
     destAmountFinal.push(Buffer.from(destAmount[i]))
   }
 
-  const QrlLedger = await createTransport()
-  await QrlLedger.createTx(
-    sourceAddrBuffer,
-    feeBuffer,
-    destAddrFinal,
-    destAmountFinal
-  ).then(async (data) => {
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+  await withLedgerTransport('ledgerCreateTx', async (qrlLedger) => {
+    const data = await qrlLedger.createTx(
+      sourceAddrBuffer,
+      feeBuffer,
+      destAddrFinal,
+      destAmountFinal
+    )
+    return data
+  }, cb)
 }
+
 const ledgerRetrieveSignature = async (txn, cb) => {
-  const QrlLedger = await createTransport()
-  await QrlLedger.retrieveSignature(txn).then(async (data) => {
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+  await withLedgerTransport('ledgerRetrieveSignature', async (qrlLedger) => {
+    const data = await qrlLedger.retrieveSignature(txn)
+    return data
+  }, cb)
 }
+
 const ledgerSetIdx = async (otsKey, cb) => {
-  const QrlLedger = await createTransport()
-  await QrlLedger.setIdx(otsKey).then(async (idxResponse) => {
-    await transport.close().then(() => {
-      cb(null, idxResponse)
-    })
-  })
+  await withLedgerTransport('ledgerSetIdx', async (qrlLedger) => {
+    const idxResponse = await qrlLedger.setIdx(otsKey)
+    return idxResponse
+  }, cb)
 }
+
 const ledgerCreateMessageTx = async (sourceAddr, fee, message, cb) => {
   const sourceAddrBuffer = Buffer.from(sourceAddr)
   const feeBuffer = Buffer.from(fee)
   const messageBuffer = Buffer.from(message)
 
-  const QrlLedger = await createTransport()
-  await QrlLedger.createMessageTx(
-    sourceAddrBuffer,
-    feeBuffer,
-    messageBuffer
-  ).then(async (data) => {
-    await transport.close().then(() => {
-      cb(null, data)
-    })
-  })
+  await withLedgerTransport('ledgerCreateMessageTx', async (qrlLedger) => {
+    const data = await qrlLedger.createMessageTx(
+      sourceAddrBuffer,
+      feeBuffer,
+      messageBuffer
+    )
+    return data
+  }, cb)
 }
 
 // Define Meteor Methods
@@ -3204,30 +3336,50 @@ Meteor.methods({
   },
   async ledgerGetState(request) {
     check(request, Array)
-    const response = await ledgerGetStateAsync(request)
-    console.log('res')
-    console.log(response)
-    return response
+    try {
+      const response = await ledgerGetStateAsync(request)
+      console.log('res')
+      console.log(response)
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerGetState', error)
+    }
   },
   async ledgerPublicKey(request) {
     check(request, Array)
-    const response = await ledgerPublicKeyAsync(request)
-    return response
+    try {
+      const response = await ledgerPublicKeyAsync(request)
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerPublicKey', error)
+    }
   },
   async ledgerAppVersion(request) {
     check(request, Array)
-    const response = await ledgerAppVersionAsync(request)
-    return response
+    try {
+      const response = await ledgerAppVersionAsync(request)
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerAppVersion', error)
+    }
   },
   async ledgerLibraryVersion(request) {
     check(request, Array)
-    const response = await ledgerLibraryVersionAsync(request)
-    return response
+    try {
+      const response = await ledgerLibraryVersionAsync(request)
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerLibraryVersion', error)
+    }
   },
   async ledgerVerifyAddress(request) {
     check(request, Array)
-    const response = await ledgerVerifyAddressAsync(request)
-    return response
+    try {
+      const response = await ledgerVerifyAddressAsync(request)
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerVerifyAddress', error)
+    }
   },
   async ledgerCreateTx(sourceAddr, fee, destAddr, destAmount) {
     check(sourceAddr, Match.Any)
@@ -3246,34 +3398,50 @@ Meteor.methods({
       destAmount
     )
 
-    const response = await ledgerCreateTxAsync(
-      sourceAddr,
-      fee,
-      destAddr,
-      destAmount
-    )
-    return response
+    try {
+      const response = await ledgerCreateTxAsync(
+        sourceAddr,
+        fee,
+        destAddr,
+        destAmount
+      )
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerCreateTx', error)
+    }
   },
   async ledgerCreateMessageTx(sourceAddr, fee, message) {
     check(sourceAddr, Match.Any)
     check(fee, Match.Any)
     check(message, Match.Any)
-    const response = await ledgerCreateMessageTxAsync(
-      sourceAddr,
-      fee,
-      message
-    )
-    return response
+    try {
+      const response = await ledgerCreateMessageTxAsync(
+        sourceAddr,
+        fee,
+        message
+      )
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerCreateMessageTx', error)
+    }
   },
   async ledgerRetrieveSignature(request) {
     check(request, Match.Any)
-    const response = await ledgerRetrieveSignatureAsync(request)
-    return response
+    try {
+      const response = await ledgerRetrieveSignatureAsync(request)
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerRetrieveSignature', error)
+    }
   },
   async ledgerSetIdx(request) {
     check(request, Match.Any)
-    const response = await ledgerSetIdxAsync(request)
-    return response
+    try {
+      const response = await ledgerSetIdxAsync(request)
+      return response
+    } catch (error) {
+      throw createLedgerMethodError('ledgerSetIdx', error)
+    }
   },
 })
 
