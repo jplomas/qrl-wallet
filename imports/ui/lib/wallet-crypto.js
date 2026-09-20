@@ -213,6 +213,140 @@ function decryptLegacyAesField(ciphertext, passphrase) {
   return aes256.decrypt(passphrase, ciphertext)
 }
 
+function decodeBase64(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(value) || value.length % 4 !== 0) {
+    throw new Error('Invalid node wallet ciphertext')
+  }
+  const binary = atob(value)
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0))
+}
+
+async function decryptNodeField(ciphertext, passphrase, aad, keyCache, allowLegacy) {
+  if (typeof ciphertext !== 'string') throw new Error('Invalid node wallet ciphertext')
+  if (ciphertext.startsWith('qrl-node-v2:')) {
+    const parts = ciphertext.split(':')
+    if (parts.length !== 5) throw new Error('Invalid node wallet ciphertext')
+    const salt = hexToBytes(parts[1])
+    const iv = hexToBytes(parts[2])
+    const tag = hexToBytes(parts[3])
+    const encrypted = hexToBytes(parts[4])
+    if (salt.length !== 32 || iv.length !== 12 || tag.length !== 16 || encrypted.length === 0) {
+      throw new Error('Invalid node wallet ciphertext')
+    }
+    let keyPromise = keyCache.get(parts[1])
+    if (!keyPromise) {
+      keyPromise = deriveKeyScrypt(passphrase, salt, DEFAULT_SCRYPT_PARAMS)
+      keyCache.set(parts[1], keyPromise)
+    }
+    const key = await keyPromise
+    return decodeUtf8(await decryptAead(encrypted, key, iv, tag, encodeUtf8(aad)))
+  }
+  if (!allowLegacy || ciphertext.includes(':')) throw new Error('Unsupported node wallet ciphertext')
+  const bytes = decodeBase64(ciphertext)
+  if (bytes.length <= 16) throw new Error('Invalid node wallet ciphertext')
+  const key = await crypto.subtle.digest('SHA-256', encodeUtf8(passphrase))
+  const aesKey = await crypto.subtle.importKey('raw', key, 'AES-CTR', false, ['decrypt'])
+  const plain = await crypto.subtle.decrypt({
+    name: 'AES-CTR', counter: bytes.slice(0, 16), length: 128,
+  }, aesKey, bytes.slice(16))
+  return decodeUtf8(new Uint8Array(plain))
+}
+
+function normalizeNodeRecord(record, slave = false) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) {
+    throw new Error('Invalid node wallet record')
+  }
+  if (!isValidQAddress(record.address) || !isValidHexseed(record.hexseed)
+      || !isValidMnemonic(record.mnemonic)
+      || (record.pk != null && !isValidPk(record.pk))
+      || !Number.isInteger(record.index) || record.index < 0
+      || !Number.isInteger(record.height)
+      || record.hashFunction === undefined || record.signatureType === undefined) {
+    throw new Error('Node wallet content is invalid or passphrase is incorrect')
+  }
+  const groups = record.slaves === undefined ? [] : record.slaves
+  if (!Array.isArray(groups) || groups.some((group) => !Array.isArray(group))) {
+    throw new Error('Invalid node wallet slave groups')
+  }
+  const normalized = {
+    address: record.address,
+    pk: record.pk == null ? null : record.pk,
+    hexseed: record.hexseed,
+    mnemonic: record.mnemonic,
+    height: record.height,
+    hashFunction: record.hashFunction,
+    signatureType: record.signatureType,
+    index: record.index,
+  }
+  if (slave) normalized.encrypted = false
+  if (record.slaves !== undefined) {
+    normalized.slaves = groups.map((group) => group.map((entry) => normalizeNodeRecord(entry, true)))
+  }
+  return normalized
+}
+
+export function normalizeNodeWallet(wallet) {
+  if (!wallet || !Array.isArray(wallet.addresses) || wallet.addresses.length === 0) {
+    throw new Error('Invalid node wallet file')
+  }
+  return {
+    version: 1,
+    encrypted: false,
+    addresses: wallet.addresses.map((entry) => normalizeNodeRecord(entry)),
+  }
+}
+
+async function decryptNodeWallet(wallet, passphrase, progressCallback) {
+  if (!passphrase) {
+    throw walletError('Missing passphrase for encrypted wallet', WALLET_PASSPHRASE_REQUIRED)
+  }
+  if (!wallet || !Array.isArray(wallet.addresses) || wallet.addresses.length === 0) {
+    throw new Error('Invalid node wallet file')
+  }
+  if (wallet.encryption_version !== undefined && wallet.encryption_version !== 2) {
+    throw new Error('Unsupported node wallet encryption version')
+  }
+  const allowLegacy = wallet.encryption_version !== 2
+  const keyCache = new Map()
+  const decryptRecord = async (record, encrypted) => {
+    if (!record || typeof record !== 'object' || !isValidQAddress(record.address)) {
+      throw new Error('Invalid node wallet record')
+    }
+    const result = { ...record }
+    if (encrypted) {
+      const hexseedAad = `qrl-node-v2:${record.address}:hexseed`
+      const mnemonicAad = `qrl-node-v2:${record.address}:mnemonic`
+      result.hexseed = await decryptNodeField(record.hexseed, passphrase, hexseedAad, keyCache, allowLegacy)
+      result.mnemonic = await decryptNodeField(record.mnemonic, passphrase, mnemonicAad, keyCache, allowLegacy)
+    }
+    if (record.slaves !== undefined) {
+      if (!Array.isArray(record.slaves)) throw new Error('Invalid node wallet slave groups')
+      result.slaves = []
+      for (const group of record.slaves) {
+        if (!Array.isArray(group)) throw new Error('Invalid node wallet slave group')
+        const decryptedGroup = []
+        for (const entry of group) {
+          decryptedGroup.push(await decryptRecord(entry, entry.encrypted === true))
+        }
+        result.slaves.push(decryptedGroup)
+      }
+    }
+    result.encrypted = false
+    return result
+  }
+  try {
+    const addresses = []
+    for (let i = 0; i < wallet.addresses.length; i += 1) {
+      addresses.push(await decryptRecord(wallet.addresses[i], true))
+      if (progressCallback) progressCallback((i + 1) / wallet.addresses.length)
+    }
+    return normalizeNodeWallet({ addresses })
+  } catch (error) {
+    if (error.code) throw error
+    throw walletError('Node wallet passphrase is incorrect or file is corrupt', WALLET_PASSPHRASE_INCORRECT)
+  }
+}
+
 async function decryptLegacyScryptField(ciphertext, passphrase) {
   const parts = ciphertext.split(':')
   if (parts.length !== 4) {
@@ -463,11 +597,25 @@ export async function loadWalletDataForUse(walletInput, passphrase, progressCall
 
   if (walletType === 'V3-ENVELOPE') {
     const walletData = await decryptV3Envelope(walletInput, passphrase, progressCallback)
+    const normalizedData = walletData && Array.isArray(walletData.addresses)
+      ? normalizeNodeWallet(walletData) : walletData
     return {
       walletType,
       deprecated: false,
       encrypted: walletInput.encrypted === true,
-      walletData,
+      walletData: normalizedData,
+    }
+  }
+
+  if (walletType === 'PYTHON-NODE') {
+    const encrypted = walletInput.encrypted === true
+    return {
+      walletType,
+      deprecated: true,
+      encrypted,
+      walletData: encrypted
+        ? await decryptNodeWallet(walletInput, passphrase, progressCallback)
+        : normalizeNodeWallet(walletInput),
     }
   }
 

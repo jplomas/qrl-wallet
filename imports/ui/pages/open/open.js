@@ -19,6 +19,7 @@ import {
   getPrimaryWalletRecordOrThrow,
   loadWalletDataForUse,
   normalizeWalletRecord,
+  normalizeNodeWallet,
   WALLET_PASSPHRASE_INCORRECT,
   WALLET_PASSPHRASE_REQUIRED,
 } from '../../lib/wallet-crypto'
@@ -763,9 +764,14 @@ async function showUpgradeWalletModal(walletType, encryptedWallet) {
 }
 
 async function saveUpgradedWallet(walletData, encryptedWallet, passphrase) {
-  const normalizedWalletData = Array.isArray(walletData)
-    ? walletData.map((entry) => normalizeWalletRecord(entry))
-    : getPrimaryWalletRecordOrThrow(walletData)
+  let normalizedWalletData
+  if (walletData && Array.isArray(walletData.addresses)) {
+    normalizedWalletData = normalizeNodeWallet(walletData)
+  } else if (Array.isArray(walletData)) {
+    normalizedWalletData = walletData.map((entry) => normalizeWalletRecord(entry))
+  } else {
+    normalizedWalletData = getPrimaryWalletRecordOrThrow(walletData)
+  }
 
   const walletEnvelope = encryptedWallet
     ? await buildEncryptedEnvelope(normalizedWalletData, passphrase)
