@@ -1287,7 +1287,9 @@ function renderTransfer() {
               type: 'button',
               id: 'confirmTransferBtn',
               disabled: state.busy,
-              text: state.busy ? 'Signing…' : 'Sign & send',
+              text: state.busy
+                ? (wallet.type === 'ledger' ? 'Confirm on Ledger…' : 'Signing…')
+                : (wallet.type === 'ledger' ? 'Sign with Ledger' : 'Sign & send'),
               onClick: () => { void confirmAndRelayTransfer(); },
             }),
           ]),
