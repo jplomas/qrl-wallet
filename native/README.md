@@ -28,6 +28,24 @@ npm run native:smoke-test
 QRL_TEST_MNEMONIC='…' npm run native:wallet-test
 ```
 
+## Redistributable packages
+
+End users should not need npm. Packaging bundles Node + the backend/UI/assets into
+a platform folder (and a Linux `.tar.gz`):
+
+```bash
+npm run native:package:runtime          # current OS
+npm run native:package:linux            # → .native/.dist/QRLWallet-linux-*/ + .tar.gz
+npm run native:package:macos            # → .native/.dist/QRLWallet-darwin-*/QRLWallet.app
+npm run native:package:windows          # → .native/.dist/QRLWallet-win32-*/
+```
+
+| Platform | User install experience | Notes |
+|----------|-------------------------|-------|
+| Linux | Extract tarball, run `./QRLWallet` | Needs system GTK3 + WebKitGTK once |
+| macOS | Open `QRLWallet.app` | Build Swift UI on a Mac first (`native:build:macos`) |
+| Windows | Run `QRLWallet.exe` | Build WPF UI on Windows first; needs WebView2 Runtime |
+
 ## CI secret
 
 GitHub Actions workflow `.github/workflows/native-ci.yml` runs the smoke test on every relevant PR/push. The wallet unlock job runs only when repository secret `QRL_TEST_MNEMONIC` is set:

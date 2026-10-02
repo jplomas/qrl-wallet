@@ -92,6 +92,14 @@ Native shells (no Electron, no Meteor) — shared UI/API under `native/`, OS Web
 	npm run native:smoke-test
 	npm run native:wallet-test
 
+Redistributable packages (bundled Node — end users do not run npm):
+
+	npm run native:package:linux
+	npm run native:package:macos
+	npm run native:package:windows
+
+Artifacts land in `.native/.dist/` (Linux also gets a `.tar.gz`).
+
 	npm run native:build:macos
 	npm run native:build:windows
 	npm run native:build:linux

@@ -16,11 +16,17 @@ public sealed class NativeBackendManager : IDisposable
 
     public async Task<ServerInfo> StartAsync(CancellationToken cancellationToken = default)
     {
-        var repoRoot = ResolveRepoRoot();
-        var serverJs = Path.Combine(repoRoot, "native", "backend", "server.js");
+        var runtimeRoot = ResolveRuntimeRoot();
+        var serverJs = Path.Combine(runtimeRoot, "native", "backend", "server.js");
         if (!File.Exists(serverJs))
         {
             throw new FileNotFoundException("Native backend missing", serverJs);
+        }
+
+        var bundledNode = Path.Combine(runtimeRoot, "bin", "node.exe");
+        if (!File.Exists(bundledNode))
+        {
+            bundledNode = Path.Combine(runtimeRoot, "bin", "node");
         }
 
         var port = GetFreePort();
@@ -31,9 +37,9 @@ public sealed class NativeBackendManager : IDisposable
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = "node",
+                FileName = File.Exists(bundledNode) ? bundledNode : "node",
                 Arguments = $"\"{serverJs}\"",
-                WorkingDirectory = repoRoot,
+                WorkingDirectory = runtimeRoot,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -44,7 +50,7 @@ public sealed class NativeBackendManager : IDisposable
 
         _process.StartInfo.Environment["BIND_IP"] = host;
         _process.StartInfo.Environment["PORT"] = port.ToString();
-        _process.StartInfo.Environment["QRL_WALLET_ROOT"] = repoRoot;
+        _process.StartInfo.Environment["QRL_WALLET_ROOT"] = runtimeRoot;
 
         _process.Start();
         _process.BeginOutputReadLine();
@@ -88,7 +94,7 @@ public sealed class NativeBackendManager : IDisposable
         return port;
     }
 
-    private static string ResolveRepoRoot()
+    private static string ResolveRuntimeRoot()
     {
         var envRoot = Environment.GetEnvironmentVariable("QRL_WALLET_ROOT");
         if (!string.IsNullOrWhiteSpace(envRoot))
@@ -96,18 +102,25 @@ public sealed class NativeBackendManager : IDisposable
             return Path.GetFullPath(envRoot);
         }
 
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        // Packaged: <installDir>/runtime next to QRLWallet.exe
+        var exeDir = AppContext.BaseDirectory;
+        var packaged = Path.Combine(exeDir, "runtime");
+        if (File.Exists(Path.Combine(packaged, "native", "backend", "server.js")))
+        {
+            return Path.GetFullPath(packaged);
+        }
+
+        var current = new DirectoryInfo(exeDir);
         while (current != null)
         {
-            if (File.Exists(Path.Combine(current.FullName, "package.json"))
-                && File.Exists(Path.Combine(current.FullName, "native", "backend", "server.js")))
+            if (File.Exists(Path.Combine(current.FullName, "native", "backend", "server.js")))
             {
                 return current.FullName;
             }
             current = current.Parent;
         }
 
-        throw new DirectoryNotFoundException("Unable to locate repository root (package.json)");
+        throw new DirectoryNotFoundException("Unable to locate native runtime root");
     }
 
     private static string GetVersion()

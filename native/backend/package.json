@@ -1,0 +1,17 @@
+{
+  "name": "qrl-wallet-native-backend",
+  "version": "1.9.1",
+  "private": true,
+  "description": "Loopback-only API for the native QRL Wallet shells",
+  "main": "server.js",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.0",
+    "@grpc/proto-loader": "^0.8.0",
+    "@ledgerhq/hw-transport-node-hid": "^6.30.0",
+    "@theqrl/hw-app-qrl": "^6.28.3",
+    "@theqrl/qrl-proto-sha256": "^3.5.0",
+    "crypto-js": "^4.2.0",
+    "tmp": "^0.2.7",
+    "usb": "^2.17.0"
+  }
+}

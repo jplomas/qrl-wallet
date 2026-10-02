@@ -1,6 +1,27 @@
 const path = require('path');
+const fs = require('fs');
 
-const PROJECT_ROOT = path.resolve(__dirname, '../..');
+function resolveProjectRoot() {
+  if (process.env.QRL_WALLET_ROOT) {
+    return path.resolve(process.env.QRL_WALLET_ROOT);
+  }
+
+  // Packaged runtime: this file lives at <runtime>/native/backend/config.js
+  // and the runtime root contains package.json + public/ + private/.
+  const runtimeCandidate = path.resolve(__dirname, '../..');
+  if (
+    fs.existsSync(path.join(runtimeCandidate, 'public'))
+    && fs.existsSync(path.join(runtimeCandidate, 'private', 'qrlbase.proto'))
+    && fs.existsSync(path.join(runtimeCandidate, 'native', 'ui'))
+  ) {
+    return runtimeCandidate;
+  }
+
+  // Dev checkout: native/backend -> repo root
+  return path.resolve(__dirname, '../..');
+}
+
+const PROJECT_ROOT = resolveProjectRoot();
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 51888;
 

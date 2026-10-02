@@ -103,7 +103,14 @@
     "native:dev:linux": "node .scripts/native/dev.js linux",
     "native:build:macos": "bash macos/build.sh",
     "native:build:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/build.ps1",
-    "native:build:linux": "bash linux/build.sh"
+    "native:build:linux": "bash linux/build.sh",
+    "native:package:runtime": "node .scripts/native/package-runtime.js",
+    "native:package:linux": "node .scripts/native/package-linux.js",
+    "native:package:macos": "node .scripts/native/package-macos.js",
+    "native:package:windows": "node .scripts/native/package-windows.js",
+    "native:package": "run-script-os",
+    "native:package:darwin": "npm run native:package:macos",
+    "native:package:win32": "npm run native:package:windows"
   },
   "meteor": {
     "mainModule": {

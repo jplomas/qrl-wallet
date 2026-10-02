@@ -31,37 +31,50 @@ final class NativeBackendManager: ObservableObject {
         }
     }
 
-    private func repoRoot() throws -> URL {
+    private func runtimeRoot() throws -> URL {
         if let envRoot = ProcessInfo.processInfo.environment["QRL_WALLET_ROOT"] {
             return URL(fileURLWithPath: envRoot, isDirectory: true)
         }
 
+        // Packaged: QRLWallet.app/Contents/Resources/runtime
+        if let resourceRuntime = Bundle.main.resourceURL?.appendingPathComponent("runtime", isDirectory: true) {
+            let server = resourceRuntime.appendingPathComponent("native/backend/server.js")
+            if FileManager.default.fileExists(atPath: server.path) {
+                return resourceRuntime
+            }
+        }
+
+        // Dev checkout: walk up to repo root
         var current = Bundle.main.bundleURL
-        for _ in 0..<8 {
-            let packageJson = current.appendingPathComponent("package.json")
-            let nativeBackend = current.appendingPathComponent("native/backend/server.js")
-            if FileManager.default.fileExists(atPath: packageJson.path),
-               FileManager.default.fileExists(atPath: nativeBackend.path) {
+        for _ in 0..<10 {
+            let server = current.appendingPathComponent("native/backend/server.js")
+            if FileManager.default.fileExists(atPath: server.path) {
                 return current
             }
             current.deleteLastPathComponent()
         }
 
         throw NSError(domain: "QRLWallet", code: 1, userInfo: [
-            NSLocalizedDescriptionKey: "Unable to locate repository root",
+            NSLocalizedDescriptionKey: "Unable to locate native runtime",
         ])
     }
 
     private func launchBackend() async throws -> URL {
-        let root = try repoRoot()
+        let root = try runtimeRoot()
         let serverJs = root.appendingPathComponent("native/backend/server.js")
+        let bundledNode = root.appendingPathComponent("bin/node")
         let port = try freePort()
         let host = "127.0.0.1"
         let url = URL(string: "http://\(host):\(port)/")!
 
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        proc.arguments = ["node", serverJs.path]
+        if FileManager.default.fileExists(atPath: bundledNode.path) {
+            proc.executableURL = bundledNode
+            proc.arguments = [serverJs.path]
+        } else {
+            proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            proc.arguments = ["node", serverJs.path]
+        }
         proc.currentDirectoryURL = root
 
         var env = ProcessInfo.processInfo.environment

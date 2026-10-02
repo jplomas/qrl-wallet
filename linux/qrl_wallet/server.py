@@ -6,6 +6,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -24,10 +25,10 @@ class ServerInfo:
 
 class NativeBackendManager:
     def __init__(self, repo_root: Path | None = None) -> None:
-        self.repo_root = Path(repo_root or resolve_repo_root())
+        self.runtime_root = Path(repo_root or resolve_runtime_root())
         self.process: subprocess.Popen | None = None
         version = "1.9.1"
-        pkg = self.repo_root / "package.json"
+        pkg = self.runtime_root / "package.json"
         if pkg.exists():
             try:
                 version = json.loads(pkg.read_text()).get("version", version)
@@ -42,22 +43,25 @@ class NativeBackendManager:
         host = "127.0.0.1"
         port = free_port()
         url = f"http://{host}:{port}/"
-        server_js = self.repo_root / "native" / "backend" / "server.js"
+        server_js = self.runtime_root / "native" / "backend" / "server.js"
         if not server_js.exists():
             raise FileNotFoundError(f"Native backend missing: {server_js}")
+
+        node = self.runtime_root / "bin" / "node"
+        node_cmd = str(node) if node.exists() else "node"
 
         env = os.environ.copy()
         env.update(
             {
                 "BIND_IP": host,
                 "PORT": str(port),
-                "QRL_WALLET_ROOT": str(self.repo_root),
+                "QRL_WALLET_ROOT": str(self.runtime_root),
             }
         )
 
         self.process = subprocess.Popen(
-            ["node", str(server_js)],
-            cwd=str(self.repo_root),
+            [node_cmd, str(server_js)],
+            cwd=str(self.runtime_root),
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -75,17 +79,25 @@ class NativeBackendManager:
             self.process.kill()
 
 
-def resolve_repo_root() -> Path:
+def resolve_runtime_root() -> Path:
     env_root = os.environ.get("QRL_WALLET_ROOT")
     if env_root:
         return Path(env_root).resolve()
 
+    # Packaged layout: <app>/runtime next to the QRLWallet launcher
     here = Path(__file__).resolve()
     for candidate in [here.parent, *here.parents]:
+        runtime = candidate / "runtime"
+        if (runtime / "native" / "backend" / "server.js").exists():
+            return runtime.resolve()
+        if (candidate / "native" / "backend" / "server.js").exists() and (
+            candidate / "public"
+        ).exists():
+            return candidate.resolve()
         if (candidate / "package.json").exists() and (candidate / "native").exists():
-            return candidate
+            return candidate.resolve()
 
-    raise FileNotFoundError("Unable to locate repository root (package.json)")
+    raise FileNotFoundError("Unable to locate native runtime root")
 
 
 def free_port() -> int:
