@@ -371,10 +371,39 @@ const handlers = {
   pushTransaction,
   createMessageTxn,
   qrSvg,
-  ledgerGetState: () => ledger.getState(),
-  ledgerPublicKey: () => ledger.publicKey(),
-  ledgerGetVersion: () => ledger.getVersion(),
-  ledgerVerifyAddress: () => ledger.verifyAddress(),
+  ledgerGetState: (request = {}) => ledger.getState(request.timeout_ms),
+  ledgerPublicKey: (request = {}) => ledger.publicKey(request.timeout_ms),
+  ledgerGetVersion: (request = {}) => ledger.getVersion(request.timeout_ms),
+  ledgerVerifyAddress: (request = {}) => ledger.verifyAddress(request.timeout_ms),
+  ledgerSetIdx: (request = {}) => ledger.setIdx(request.ots_index ?? request.otsKey, request.timeout_ms),
+  ledgerCreateTx: (request = {}) => ledger.createTx({
+    sourceAddr: request.source_addr || request.sourceAddr || addressToBytes(request.address),
+    fee: request.fee,
+    addressesTo: request.addresses_to || request.addressesTo,
+    amounts: request.amounts,
+  }, request.timeout_ms),
+  ledgerRetrieveSignature: (request = {}) => {
+    const timeoutMs = request.timeout_ms;
+    const txn = request.txn || (() => {
+      const { timeout_ms: _ignored, ...rest } = request;
+      return rest;
+    })();
+    return ledger.retrieveSignature(txn, timeoutMs);
+  },
+  ledgerCreateMessageTx: (request = {}) => ledger.createMessageTx({
+    sourceAddr: request.source_addr || request.sourceAddr || addressToBytes(request.address),
+    fee: request.fee,
+    message: request.message,
+  }, request.timeout_ms),
+  ledgerSignTransfer: (request = {}) => ledger.signTransfer({
+    sourceAddr: request.source_addr || request.sourceAddr || addressToBytes(request.address),
+    fee: request.fee,
+    addressesTo: (request.addresses_to || request.addressesTo || []).map((addr) => (
+      typeof addr === 'string' && addr.startsWith('Q') ? addressToBytes(addr) : addr
+    )),
+    amounts: request.amounts,
+    otsIndex: request.ots_index ?? request.otsKey ?? request.otsIndex,
+  }, request.timeout_ms || 120000),
 };
 
 module.exports = {

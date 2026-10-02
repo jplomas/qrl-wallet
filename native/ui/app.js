@@ -1,6 +1,6 @@
 /* global QRLLIB */
 
-import { ensureXmssFromWallet, signTransferTransaction } from './lib/sign-transfer.js';
+import { ensureXmssFromWallet, finalizeLedgerTransfer, signTransferTransaction } from './lib/sign-transfer.js';
 import {
   buildEncryptedEnvelope,
   buildUnencryptedEnvelope,
@@ -345,6 +345,51 @@ function generateOnMainThread(randomSeed, xmssHeight) {
   };
 }
 
+
+async function openLedgerWallet() {
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const pkResp = await api('ledgerPublicKey', { timeout_ms: 15000 });
+    if (!pkResp || !pkResp.public_key) {
+      throw new Error('Ledger did not return a public key. Unlock the device and open the QRL app.');
+    }
+    const returnCode = Number(pkResp.return_code);
+    if (Number.isFinite(returnCode) && returnCode !== 0 && returnCode !== 0x9000) {
+      if (returnCode === 0x6982 || returnCode === 27013) {
+        throw new Error('Ledger is locked. Unlock it and open the QRL app.');
+      }
+      if (pkResp.error_message) {
+        throw new Error(`Ledger error: ${pkResp.error_message}`);
+      }
+    }
+    const pkHex = String(pkResp.public_key);
+    const addrRaw = QRLLIB.getAddress(pkHex);
+    const address = String(addrRaw).startsWith('Q') ? String(addrRaw) : `Q${addrRaw}`;
+    if (!isValidQrlAddress(address)) {
+      throw new Error('Derived Ledger address is invalid');
+    }
+    state.wallet = {
+      type: 'ledger',
+      address,
+      pk: pkHex,
+      height: 10,
+      mnemonic: null,
+      hexseed: null,
+    };
+    state.revealMnemonic = false;
+    state.view = 'wallet';
+    state.error = '';
+    await refreshWallet();
+    setSuccess('Ledger wallet opened');
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
 function renderHome() {
   return el('section', { className: 'space-y-8' }, [
     el('div', { className: 'space-y-3' }, [
@@ -389,6 +434,14 @@ function renderHome() {
             icon(['M12 4v16m8-8H4']),
             'Create Wallet',
           ]),
+          el('button', {
+            id: 'openLedgerBtn',
+            className: 'btn btn-outline gap-2',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Reading Ledger…' : 'Open Ledger',
+            onClick: () => { void openLedgerWallet(); },
+          }),
           el('button', {
             className: 'btn btn-ghost gap-2',
             type: 'button',
@@ -981,34 +1034,49 @@ function renderWallet() {
       el('div', { className: 'stat' }, [
         el('div', { className: 'stat-title', text: 'Network' }),
         el('div', { className: 'stat-value text-2xl capitalize', text: state.network }),
-        el('div', { className: 'stat-desc', text: wallet.height ? `XMSS height ${wallet.height}` : 'XMSS' }),
+        el('div', {
+          className: 'stat-desc',
+          text: wallet.type === 'ledger'
+            ? 'Ledger Nano'
+            : (wallet.height ? `XMSS height ${wallet.height}` : 'XMSS'),
+        }),
       ]),
     ]),
     el('div', { className: 'card-gradient' }, [
       el('div', { className: 'card-body gap-4' }, [
-        el('div', { className: 'flex items-center justify-between gap-3 flex-wrap' }, [
-          el('h2', { className: 'card-title text-base', text: 'Recovery phrase' }),
-          el('button', {
-            className: 'btn btn-sm btn-outline',
-            type: 'button',
-            id: 'revealMnemonicBtn',
-            text: state.revealMnemonic ? 'Hide mnemonic' : 'Show mnemonic',
-            onClick: () => {
-              state.revealMnemonic = !state.revealMnemonic;
-              render();
-            },
-          }),
-        ]),
-        state.revealMnemonic
-          ? el('p', {
-            id: 'mnemonicReveal',
-            className: 'native-mono text-sm text-warning bg-warning/10 border border-warning/30 rounded-lg p-3',
-            text: wallet.mnemonic,
-          })
-          : el('p', {
-            className: 'text-sm text-base-content/60',
-            text: 'Mnemonic is hidden. Only reveal it when you need to back up this wallet. Never share it.',
-          }),
+        wallet.type === 'ledger'
+          ? el('div', { className: 'space-y-2' }, [
+            el('h2', { className: 'card-title text-base', text: 'Ledger hardware wallet' }),
+            el('p', {
+              className: 'text-sm text-base-content/60',
+              text: 'Seeds stay on the device. Confirm transfers on the Ledger screen when signing.',
+            }),
+          ])
+          : el('div', { className: 'flex items-center justify-between gap-3 flex-wrap' }, [
+            el('h2', { className: 'card-title text-base', text: 'Recovery phrase' }),
+            el('button', {
+              className: 'btn btn-sm btn-outline',
+              type: 'button',
+              id: 'revealMnemonicBtn',
+              text: state.revealMnemonic ? 'Hide mnemonic' : 'Show mnemonic',
+              onClick: () => {
+                state.revealMnemonic = !state.revealMnemonic;
+                render();
+              },
+            }),
+          ]),
+        wallet.type === 'ledger'
+          ? null
+          : (state.revealMnemonic
+            ? el('p', {
+              id: 'mnemonicReveal',
+              className: 'native-mono text-sm text-warning bg-warning/10 border border-warning/30 rounded-lg p-3',
+              text: wallet.mnemonic,
+            })
+            : el('p', {
+              className: 'text-sm text-base-content/60',
+              text: 'Mnemonic is hidden. Only reveal it when you need to back up this wallet. Never share it.',
+            })),
         el('div', { className: 'card-actions justify-end flex-wrap gap-2' }, [
           el('button', {
             className: 'btn btn-ghost btn-sm',
@@ -1371,8 +1439,33 @@ async function confirmAndRelayTransfer() {
   setError('');
   try {
     await waitForQrllib();
-    const xmss = ensureXmssFromWallet(wallet);
-    const signed = signTransferTransaction(xmss, draft.prepared, draft.otsIndex);
+    let signed;
+    if (wallet.type === 'ledger') {
+      const tx = draft.prepared.extended_transaction_unsigned.tx;
+      const transfer = tx.transfer;
+      const sigResponse = await api('ledgerSignTransfer', {
+        address: wallet.address,
+        fee: Number(tx.fee),
+        addresses_to: transfer.addrs_to,
+        amounts: (transfer.amounts || []).map((amount) => Number(amount)),
+        ots_index: draft.otsIndex,
+        timeout_ms: 120000,
+      });
+      const returnCode = Number(sigResponse && sigResponse.return_code);
+      if (returnCode === 27014) {
+        throw new Error('Ledger rejected the transaction');
+      }
+      if (returnCode === 14) {
+        throw new Error('Timed out waiting for Ledger confirmation');
+      }
+      if (!sigResponse || !sigResponse.signature) {
+        throw new Error((sigResponse && sigResponse.error_message) || 'Ledger did not return a signature');
+      }
+      signed = finalizeLedgerTransfer(draft.prepared, sigResponse.signature, wallet.pk);
+    } else {
+      const xmss = ensureXmssFromWallet(wallet);
+      signed = signTransferTransaction(xmss, draft.prepared, draft.otsIndex);
+    }
     const pushed = await api('pushTransaction', {
       network: state.network,
       transaction_signed: signed.signedTx,
@@ -1605,13 +1698,13 @@ function renderTools() {
     return renderHome();
   }
   const tools = [
-    { id: 'message', title: 'Message', desc: 'Embed up to 80 bytes on-chain', view: 'message' },
-    { id: 'notarise', title: 'Notarise', desc: 'Anchor a document hash on-chain', view: 'notarise' },
-    { id: 'recovery', title: 'Recovery seed', desc: 'View mnemonic, hexseed, and QR', view: 'recovery' },
-    { id: 'verify', title: 'Verify TX', desc: 'Look up a transaction hash', view: 'verify' },
-    { id: 'ots', title: 'OTS tracker', desc: 'Inspect used one-time keys', view: 'ots' },
-    { id: 'tokens', title: 'Tokens', desc: 'Balances, create, and transfer', view: 'tokens' },
-  ];
+    { id: 'message', title: 'Message', desc: 'Embed up to 80 bytes on-chain', view: 'message', seedOnly: false },
+    { id: 'notarise', title: 'Notarise', desc: 'Anchor a document hash on-chain', view: 'notarise', seedOnly: false },
+    { id: 'recovery', title: 'Recovery seed', desc: 'View mnemonic, hexseed, and QR', view: 'recovery', seedOnly: true },
+    { id: 'verify', title: 'Verify TX', desc: 'Look up a transaction hash', view: 'verify', seedOnly: false },
+    { id: 'ots', title: 'OTS tracker', desc: 'Inspect used one-time keys', view: 'ots', seedOnly: false },
+    { id: 'tokens', title: 'Tokens', desc: 'Balances, create, and transfer', view: 'tokens', seedOnly: false },
+  ].filter((tool) => !(tool.seedOnly && state.wallet && state.wallet.type === 'ledger'));
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Tools' }),

@@ -23,9 +23,9 @@ Base PR target: **`native`** branch.
 - [x] Nav shell + explorer links + version footer
 - [x] Token balances + transfer + create
 - [x] Document notarise
+- [x] Ledger open + sign transfer
 
 ## Next
-- [ ] Ledger open + sign
 - [ ] Multisig create/spend/vote
 - [ ] Keybase + Github identity tools
 - [ ] NFT balances + mint
