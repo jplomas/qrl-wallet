@@ -714,7 +714,7 @@ function renderWallet() {
           })
           : el('p', {
             className: 'text-sm text-base-content/60',
-            text: 'Mnemonic is hidden. Only reveal it when you need to back up this wallet — never share it.',
+            text: 'Mnemonic is hidden. Only reveal it when you need to back up this wallet. Never share it.',
           }),
         el('div', { className: 'card-actions justify-end flex-wrap' }, [
           el('button', {

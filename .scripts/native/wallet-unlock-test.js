@@ -178,18 +178,18 @@ async function main() {
     await page.waitForFunction(() => {
       const text = document.body.innerText || '';
       const hasAddress = /Q[0-9a-fA-F]{78}/.test(text);
-      const hasBalance = /Balance/i.test(text) && /Quanta/i.test(text) && /[\d.,]+/.test(text);
-      const hasOts = /Next OTS/i.test(text) && /\d+/.test(text);
-      const balancePlaceholder = /Balance[\s\S]*?—/.test(text);
-      const otsPlaceholder = /Next OTS[\s\S]*?—/.test(text);
-      return hasAddress && hasBalance && hasOts && !balancePlaceholder && !otsPlaceholder;
+      // Match the numeric value directly under each daisyUI stat title.
+      // Do not scan for "—" placeholders across the whole page — other copy can use dashes.
+      const hasBalance = /Balance\s+([\d.,]+)/i.test(text);
+      const hasOts = /Next OTS\s+(\d+)/i.test(text);
+      return hasAddress && hasBalance && hasOts;
     }, { timeout: 180000 });
 
     const snapshot = await page.evaluate(() => {
       const text = document.body.innerText || '';
       const address = (text.match(/Q[0-9a-fA-F]{78}/) || [])[0] || null;
-      const balanceMatch = text.match(/Balance\s*([\d.,]+)/i);
-      const otsMatch = text.match(/Next OTS\s*(\d+)/i);
+      const balanceMatch = text.match(/Balance\s+([\d.,]+)/i);
+      const otsMatch = text.match(/Next OTS\s+(\d+)/i);
       const mnemonicVisible = Boolean(document.getElementById('mnemonicReveal'));
       const revealBtn = document.getElementById('revealMnemonicBtn');
       return {
