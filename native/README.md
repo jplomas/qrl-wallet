@@ -25,5 +25,16 @@ Platform shells start the backend on `127.0.0.1`, then load it in an OS WebView.
 npm run native:backend          # http://127.0.0.1:51888
 npm run native:dev:linux        # GTK + WebKit shell
 npm run native:smoke-test
-npm run native:wallet-test      # unlocks the provided testnet mnemonic in headless Chrome
+QRL_TEST_MNEMONIC='…' npm run native:wallet-test
 ```
+
+## CI secret
+
+GitHub Actions workflow `.github/workflows/native-ci.yml` runs the smoke test on every relevant PR/push. The wallet unlock job runs only when repository secret `QRL_TEST_MNEMONIC` is set:
+
+```bash
+# from a machine with repo admin access:
+gh secret set QRL_TEST_MNEMONIC --body "$(pbpaste)"   # or type/paste the testnet mnemonic
+```
+
+Or: repo **Settings → Secrets and variables → Actions → New repository secret** named `QRL_TEST_MNEMONIC`.
