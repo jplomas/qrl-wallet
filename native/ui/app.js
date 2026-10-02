@@ -68,6 +68,8 @@ const state = {
   identityDraft: null,
   identityResult: null,
   githubLookup: null,
+  nftMintDraft: null,
+  nftMintResult: null,
 };
 
 const SHOR_PER_QUANTA = 1e9;
