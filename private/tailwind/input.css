@@ -30,6 +30,9 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Scan native desktop UI so daisyUI classes used only there are emitted */
+@source "../../native/ui/**/*.{html,js,css}";
+
 @plugin "daisyui" {
   themes: qrl --default, qrl --prefersdark;
 }

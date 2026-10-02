@@ -10,17 +10,17 @@
 </head>
 <body class="min-h-screen">
   <div class="native-shell min-h-screen flex flex-col">
-    <header class="navbar bg-base-200/80 backdrop-blur-md border-b border-base-content/10 sticky top-0 z-20 px-4 lg:px-6">
-      <div class="flex-1 gap-3 items-center">
-        <button type="button" id="brandHome" class="flex items-center gap-3 hover:opacity-90">
+    <header class="navbar bg-base-200/80 backdrop-blur-md border-b border-base-content/10 sticky top-0 z-20 px-2 lg:px-4">
+      <div class="navbar-start gap-3">
+        <button type="button" id="brandHome" class="btn btn-ghost gap-3 px-2">
           <img src="/img/qrl-full-logo.svg" alt="QRL" class="h-7 w-auto" />
           <span class="text-xs uppercase tracking-widest text-base-content/50 font-medium hidden sm:inline">Native Wallet</span>
         </button>
       </div>
-      <div class="flex-none gap-3 items-center">
+      <div class="navbar-end gap-3">
         <label class="flex items-center gap-2 text-sm text-base-content/70">
           <span class="hidden sm:inline">Network</span>
-          <select id="networkSelect" class="select select-bordered select-sm bg-base-100"></select>
+          <select id="networkSelect" class="select select-sm bg-base-100"></select>
         </label>
         <span id="connectionBadge" class="badge badge-ghost badge-sm">connecting…</span>
       </div>
@@ -28,11 +28,17 @@
 
     <main id="viewRoot" class="flex-1 w-full max-w-3xl mx-auto px-4 py-8 lg:py-12"></main>
 
-    <footer class="border-t border-base-content/10 px-4 py-3 text-xs text-base-content/50 flex flex-wrap gap-3 justify-between">
-      <span id="footerVersion">QRL Wallet</span>
-      <a id="explorerLink" class="link link-hover" href="https://testnet-explorer.theqrl.org" target="_blank" rel="noopener noreferrer">Explorer</a>
+    <footer class="footer footer-horizontal items-center border-t border-base-content/10 bg-base-200/40 px-4 py-3 text-xs text-base-content/50">
+      <aside>
+        <span id="footerVersion">QRL Wallet</span>
+      </aside>
+      <nav class="justify-self-end">
+        <a id="explorerLink" class="link link-hover" href="https://testnet-explorer.theqrl.org" target="_blank" rel="noopener noreferrer">Explorer</a>
+      </nav>
     </footer>
   </div>
+
+  <div id="toastRoot" class="toast toast-top toast-center z-50"></div>
 
   <script src="/vendor/qrllib/offline-libjsqrl.js"></script>
   <script type="module" src="/app.js"></script>

@@ -414,21 +414,23 @@ async function openLedgerWallet() {
 
 function renderHome() {
   return el('section', { className: 'space-y-8' }, [
-    el('div', { className: 'space-y-3' }, [
-      el('p', {
-        className: 'text-xs uppercase tracking-[0.2em] text-primary font-semibold',
-        text: 'QRL Wallet',
-      }),
-      el('h1', {
-        className: 'native-hero-brand text-base-content',
-        text: 'Quantum-secure keys, local only',
-      }),
-      el('p', {
-        className: 'text-base-content/70 max-w-xl leading-relaxed',
-        text: 'Open or create an XMSS wallet. Seeds never leave this process — chain calls go through a loopback API.',
-      }),
+    el('div', { className: 'hero' }, [
+      el('div', { className: 'hero-content flex-col items-start text-left p-0 max-w-none w-full' }, [
+        el('p', {
+          className: 'text-xs uppercase tracking-[0.2em] text-primary font-semibold',
+          text: 'QRL Wallet',
+        }),
+        el('h1', {
+          className: 'native-hero-brand text-base-content',
+          text: 'Quantum-secure keys, local only',
+        }),
+        el('p', {
+          className: 'text-base-content/70 max-w-xl leading-relaxed',
+          text: 'Open or create an XMSS wallet. Seeds never leave this process — chain calls go through a loopback API.',
+        }),
+      ]),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-5' }, [
         el('div', { className: 'flex flex-wrap gap-3' }, [
           el('button', {
@@ -494,7 +496,7 @@ function renderOpen() {
 
   const seedInput = el('textarea', {
     id: 'seedInput',
-    className: 'textarea textarea-bordered w-full native-mono min-h-28',
+    className: 'textarea w-full native-mono min-h-28',
     placeholder: 'Enter mnemonic phrase',
     autocomplete: 'off',
     spellcheck: 'false',
@@ -502,20 +504,20 @@ function renderOpen() {
 
   const fileInput = el('input', {
     id: 'walletFileInput',
-    className: 'file-input file-input-bordered w-full',
+    className: 'file-input w-full',
     type: 'file',
     accept: 'application/json,.json',
   });
   const filePass = el('input', {
     id: 'walletFilePassphrase',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'password',
     placeholder: 'Passphrase (if encrypted)',
     autocomplete: 'current-password',
   });
 
   const seedPanel = el('div', { id: 'openSeedPanel', className: 'space-y-4' }, [
-    el('div', { className: 'tabs tabs-boxed bg-base-100/40 w-full' }, [
+    el('div', { role: 'tablist', className: 'tabs tabs-box w-full' }, [
       el('a', {
         className: 'tab tab-active',
         role: 'tab',
@@ -563,9 +565,10 @@ function renderOpen() {
   ]);
 
   let openMode = 'seed';
-  const modeTabs = el('div', { className: 'tabs tabs-boxed w-full mb-2' }, [
+  const modeTabs = el('div', { role: 'tablist', className: 'tabs tabs-box w-full mb-2' }, [
     el('a', {
       className: 'tab tab-active',
+      role: 'tab',
       text: 'Seed',
       onClick: (event) => {
         event.preventDefault();
@@ -578,6 +581,7 @@ function renderOpen() {
     }),
     el('a', {
       className: 'tab',
+      role: 'tab',
       text: 'Wallet file',
       onClick: (event) => {
         event.preventDefault();
@@ -598,7 +602,7 @@ function renderOpen() {
         text: 'Unlock from a mnemonic, hexseed, or a saved v3 wallet file.',
       }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         modeTabs,
         seedPanel,
@@ -662,7 +666,7 @@ function renderOpen() {
 function renderCreate() {
   const heightSelect = el('select', {
     id: 'xmssHeight',
-    className: 'select select-bordered w-full bg-base-100',
+    className: 'select w-full bg-base-100',
   }, [
     el('option', { value: '8', text: 'Height 8 — 256 signatures (~1s)' }),
     el('option', { value: '10', text: 'Height 10 — 1,024 signatures (~2–3s)', selected: true }),
@@ -673,7 +677,7 @@ function renderCreate() {
   ]);
   const hashSelect = el('select', {
     id: 'hashFunction',
-    className: 'select select-bordered w-full bg-base-100',
+    className: 'select w-full bg-base-100',
   }, [
     el('option', { value: 'SHAKE_128', text: 'SHAKE_128 (default)', selected: true }),
     el('option', { value: 'SHAKE_256', text: 'SHAKE_256' }),
@@ -689,7 +693,7 @@ function renderCreate() {
       }),
     ]),
     el('div', { className: 'grid gap-4 lg:grid-cols-5' }, [
-      el('div', { className: 'card-gradient lg:col-span-3' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm lg:col-span-3' }, [
         el('div', { className: 'card-body gap-4' }, [
           el('fieldset', { className: 'fieldset' }, [
             el('legend', { className: 'fieldset-legend', text: 'XMSS tree height' }),
@@ -758,7 +762,7 @@ function renderGenerating() {
         text: `Building an XMSS tree at height ${gen.height} (${gen.signatures.toLocaleString()} one-time signatures). Larger heights can take a while — this runs off the UI thread.`,
       }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body items-center text-center gap-5 py-10' }, [
         isCountdown
           ? el('div', { className: 'space-y-3' }, [
@@ -885,7 +889,7 @@ function renderBackup() {
 
   const passphraseInput = el('input', {
     id: 'backupPassphrase',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'password',
     placeholder: 'Passphrase for encrypted save',
     autocomplete: 'new-password',
@@ -899,7 +903,7 @@ function renderBackup() {
         text: 'Save your wallet before using it. The mnemonic is shown once here — store it offline.',
       }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('div', { className: 'flex flex-col md:flex-row gap-4 items-start' }, [
           el('div', {
@@ -1040,7 +1044,7 @@ function renderWallet() {
         })
         : null,
     ]),
-    el('div', { className: 'stats stats-vertical sm:stats-horizontal bg-base-200/80 border border-base-content/10 w-full shadow' }, [
+    el('div', { className: 'stats stats-vertical sm:stats-horizontal bg-base-100 border border-base-content/10 w-full shadow-sm' }, [
       el('div', { className: 'stat' }, [
         el('div', { className: 'stat-title', text: 'Balance' }),
         el('div', { className: 'stat-value text-2xl text-primary', text: `${balance}` }),
@@ -1064,7 +1068,7 @@ function renderWallet() {
         }),
       ]),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         wallet.type === 'ledger'
           ? el('div', { className: 'space-y-2' }, [
@@ -1236,7 +1240,7 @@ function renderTransfer() {
         el('h1', { className: 'text-3xl font-bold', text: 'Transfer sent' }),
         el('p', { className: 'text-base-content/70', text: 'Transaction relayed to the network.' }),
       ]),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-3' }, [
           el('p', { className: 'text-sm text-base-content/60', text: 'Transaction hash' }),
           el('p', {
@@ -1273,7 +1277,7 @@ function renderTransfer() {
           text: 'Review details, then sign locally with the next OTS key and relay.',
         }),
       ]),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-3' }, [
           el('div', {}, [
             el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'To' }),
@@ -1323,13 +1327,13 @@ function renderTransfer() {
   const nextOts = readNextOts(wallet.ots);
   const toInput = el('input', {
     id: 'toAddress',
-    className: 'input input-bordered w-full native-mono',
+    className: 'input w-full native-mono',
     placeholder: 'Q…',
     autocomplete: 'off',
   });
   const amountInput = el('input', {
     id: 'amount',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: '0.000000001',
@@ -1337,7 +1341,7 @@ function renderTransfer() {
   });
   const feeInput = el('input', {
     id: 'fee',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: '0.000000001',
@@ -1345,7 +1349,7 @@ function renderTransfer() {
   });
   const otsInput = el('input', {
     id: 'otsKey',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: '1',
@@ -1357,7 +1361,7 @@ function renderTransfer() {
       el('h1', { className: 'text-3xl font-bold', text: 'Transfer' }),
       el('p', { className: 'native-mono text-sm text-base-content/70', text: wallet.address }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [
           el('legend', { className: 'fieldset-legend', text: 'Destination' }),
@@ -1530,7 +1534,7 @@ function renderReceive() {
       el('h1', { className: 'text-3xl font-bold', text: 'Receive' }),
       el('p', { className: 'text-base-content/70', text: 'Share this address to receive Quanta.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body items-center text-center gap-4' }, [
         qrWrap,
         el('p', { className: 'native-mono text-sm break-all', text: wallet.address }),
@@ -1594,7 +1598,7 @@ function renderHistory() {
       el('h1', { className: 'text-3xl font-bold', text: 'History' }),
       el('p', { className: 'text-base-content/70', text: 'Recent transactions for this address.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-3' }, [
         list,
         el('div', { className: 'card-actions justify-between' }, [
@@ -1668,7 +1672,7 @@ function renderOts() {
           : 'Loading OTS bitfield…',
       }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('div', { className: 'flex flex-wrap gap-1 max-w-xl' }, cells.length ? cells : [
           el('span', { className: 'loading loading-spinner text-primary' }),
@@ -1739,7 +1743,7 @@ function renderTools() {
       el('p', { className: 'text-base-content/70', text: 'Seed-wallet utilities for this native client.' }),
     ]),
     el('div', { className: 'grid gap-3 sm:grid-cols-2' }, tools.map((tool) => el('button', {
-      className: 'card-gradient text-left p-4 hover:border-primary/40 transition-colors',
+      className: 'card bg-base-100 card-border shadow-sm text-left hover:border-primary transition-colors',
       type: 'button',
       onClick: () => {
         state.view = tool.view;
@@ -1759,8 +1763,10 @@ function renderTools() {
         if (tool.view === 'multisig') void loadMultisig();
       },
     }, [
-      el('h3', { className: 'font-bold', text: tool.title }),
-      el('p', { className: 'text-sm text-base-content/60', text: tool.desc }),
+      el('div', { className: 'card-body gap-1' }, [
+        el('h3', { className: 'card-title text-base', text: tool.title }),
+        el('p', { className: 'text-sm text-base-content/60', text: tool.desc }),
+      ]),
     ]))),
     el('button', {
       className: 'btn btn-ghost',
@@ -1782,7 +1788,7 @@ function renderRecovery() {
       el('h1', { className: 'text-3xl font-bold', text: 'Recovery seed' }),
       el('p', { className: 'text-warning text-sm', text: 'Anyone with this seed can spend your funds. Keep it offline.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('div', {
           id: 'recoveryQr',
@@ -1843,13 +1849,13 @@ function renderMessage() {
 
   const msgInput = el('textarea', {
     id: 'messageBody',
-    className: 'textarea textarea-bordered w-full',
+    className: 'textarea w-full',
     maxlength: '80',
     placeholder: 'Up to 80 bytes',
   });
   const feeInput = el('input', {
     id: 'messageFee',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: '0.000000001',
@@ -1858,7 +1864,7 @@ function renderMessage() {
   const nextOts = readNextOts(wallet.ots);
   const otsInput = el('input', {
     id: 'messageOts',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     value: nextOts != null ? String(nextOts) : '0',
@@ -1869,7 +1875,7 @@ function renderMessage() {
       el('h1', { className: 'text-3xl font-bold', text: 'On-chain message' }),
       el('p', { className: 'text-base-content/70', text: 'Create, sign, and relay a message transaction (≤80 bytes).' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [
           el('legend', { className: 'fieldset-legend', text: 'Message' }),
@@ -1954,7 +1960,7 @@ function renderNotarise() {
     const result = state.notariseResult;
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Document notarised' }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-3' }, [
           el('p', { className: 'text-xs uppercase text-base-content/50', text: 'Transaction' }),
           el('p', { className: 'native-mono text-sm break-all', id: 'notariseTxHash', text: result.txnHash }),
@@ -1983,7 +1989,7 @@ function renderNotarise() {
     const draft = state.notariseDraft;
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Confirm notarisation' }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-2' }, [
           el('p', { text: `File: ${draft.fileName}` }),
           el('p', { className: 'native-mono text-xs break-all', text: `SHA256: ${draft.fileHash}` }),
@@ -2018,18 +2024,18 @@ function renderNotarise() {
   const nextOts = readNextOts(wallet.ots);
   const fileInput = el('input', {
     id: 'notaryDocument',
-    className: 'file-input file-input-bordered w-full',
+    className: 'file-input w-full',
     type: 'file',
   });
   const noteInput = el('input', {
     id: 'notaryAdditionalText',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     maxlength: String(NOTARISE_SHA256_ADDITIONAL_MAX),
     placeholder: `Optional note (max ${NOTARISE_SHA256_ADDITIONAL_MAX} bytes)`,
   });
   const feeInput = el('input', {
     id: 'notaryFee',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: '0.000000001',
@@ -2037,7 +2043,7 @@ function renderNotarise() {
   });
   const otsInput = el('input', {
     id: 'notaryOts',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     value: nextOts != null ? String(nextOts) : '0',
@@ -2051,7 +2057,7 @@ function renderNotarise() {
         text: 'Stores a SHA-256 hash of your file on-chain (Meteor-compatible AFAFA encoding). The file itself is not uploaded.',
       }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [
           el('legend', { className: 'fieldset-legend', text: 'Document' }),
@@ -2060,7 +2066,7 @@ function renderNotarise() {
         el('fieldset', { className: 'fieldset' }, [
           el('legend', { className: 'fieldset-legend', text: 'Hash function' }),
           el('input', {
-            className: 'input input-bordered w-full',
+            className: 'input w-full',
             value: 'SHA256',
             disabled: true,
             id: 'notaryHashFunction',
@@ -2254,7 +2260,7 @@ function renderTokens() {
       ? el('p', { className: 'text-base-content/60', text: 'Loading…' })
       : fungible.length === 0
         ? el('p', { className: 'text-base-content/60', text: 'No tokens held on this address.' })
-        : el('div', { className: 'overflow-x-auto card-gradient' }, [
+        : el('div', { className: 'overflow-x-auto card bg-base-100 card-border shadow-sm' }, [
           el('table', { className: 'table table-sm', id: 'tokenBalancesTable' }, [
             el('thead', {}, [
               el('tr', {}, [
@@ -2300,7 +2306,7 @@ function renderTokenCreate() {
     const draft = state.tokenCreateDraft;
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Confirm token create' }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-2' }, [
           el('p', { text: `Symbol: ${draft.symbol}` }),
           el('p', { text: `Name: ${draft.name}` }),
@@ -2330,19 +2336,19 @@ function renderTokenCreate() {
   }
 
   const nextOts = readNextOts(wallet.ots);
-  const symbolInput = el('input', { id: 'tokenSymbol', className: 'input input-bordered w-full', maxlength: '10', placeholder: 'SYM' });
-  const nameInput = el('input', { id: 'tokenName', className: 'input input-bordered w-full', maxlength: '32', placeholder: 'Token name' });
-  const decimalsInput = el('input', { id: 'tokenDecimals', className: 'input input-bordered w-full', type: 'number', min: '0', max: '19', value: '0' });
-  const supplyInput = el('input', { id: 'tokenSupply', className: 'input input-bordered w-full', type: 'number', min: '1', step: '1', value: '1000' });
-  const feeInput = el('input', { id: 'tokenCreateFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
-  const otsInput = el('input', { id: 'tokenCreateOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  const symbolInput = el('input', { id: 'tokenSymbol', className: 'input w-full', maxlength: '10', placeholder: 'SYM' });
+  const nameInput = el('input', { id: 'tokenName', className: 'input w-full', maxlength: '32', placeholder: 'Token name' });
+  const decimalsInput = el('input', { id: 'tokenDecimals', className: 'input w-full', type: 'number', min: '0', max: '19', value: '0' });
+  const supplyInput = el('input', { id: 'tokenSupply', className: 'input w-full', type: 'number', min: '1', step: '1', value: '1000' });
+  const feeInput = el('input', { id: 'tokenCreateFee', className: 'input w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
+  const otsInput = el('input', { id: 'tokenCreateOts', className: 'input w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
 
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Create token' }),
       el('p', { className: 'text-base-content/70', text: 'Mint a fungible token with initial balance to this wallet.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Symbol' }), symbolInput]),
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Name' }), nameInput]),
@@ -2491,7 +2497,7 @@ function renderTokenTransfer() {
   if (draft.prepared) {
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Confirm token transfer' }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-2' }, [
           el('p', { text: `Token: ${token.symbol || token.hash}` }),
           el('p', { className: 'native-mono text-xs break-all', text: `To: ${draft.toAddress}` }),
@@ -2525,13 +2531,13 @@ function renderTokenTransfer() {
   const nextOts = readNextOts(wallet.ots);
   const toInput = el('input', {
     id: 'tokenToAddress',
-    className: 'input input-bordered w-full native-mono',
+    className: 'input w-full native-mono',
     placeholder: 'Q…',
     value: wallet.address,
   });
   const amountInput = el('input', {
     id: 'tokenAmount',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: 'any',
@@ -2539,7 +2545,7 @@ function renderTokenTransfer() {
   });
   const feeInput = el('input', {
     id: 'tokenTransferFee',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: '0.000000001',
@@ -2547,7 +2553,7 @@ function renderTokenTransfer() {
   });
   const otsInput = el('input', {
     id: 'tokenTransferOts',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     value: nextOts != null ? String(nextOts) : '0',
@@ -2558,7 +2564,7 @@ function renderTokenTransfer() {
       el('h1', { className: 'text-3xl font-bold', text: 'Transfer token' }),
       el('p', { className: 'text-base-content/70', text: `${token.symbol || 'Token'} · balance ${token.balance_display != null ? token.balance_display : token.balance}` }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Recipient' }), toInput]),
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Amount' }), amountInput]),
@@ -2723,7 +2729,7 @@ function renderMultisig() {
     const draft = state.multisigDraft;
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: `Confirm multisig ${draft.kind}` }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-2' }, [
           el('pre', {
             className: 'native-mono text-xs whitespace-pre-wrap break-all',
@@ -2791,7 +2797,7 @@ function renderMultisig() {
         onClick: () => { state.view = 'tools'; render(); },
       }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-3' }, [
         el('h2', { className: 'card-title text-base', text: 'Addresses for this wallet' }),
         !addresses
@@ -2806,7 +2812,7 @@ function renderMultisig() {
             })),
       ]),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-3' }, [
         el('h2', { className: 'card-title text-base', text: 'Recent spend proposals' }),
         !spends
@@ -2831,19 +2837,19 @@ function renderMultisigCreate() {
   const nextOts = readNextOts(wallet.ots);
   const sig2 = el('input', {
     id: 'msSig2',
-    className: 'input input-bordered w-full native-mono',
+    className: 'input w-full native-mono',
     placeholder: 'Second signatory Q…',
   });
-  const weight1 = el('input', { id: 'msWeight1', className: 'input input-bordered w-full', type: 'number', min: '1', value: '1' });
-  const weight2 = el('input', { id: 'msWeight2', className: 'input input-bordered w-full', type: 'number', min: '1', value: '1' });
-  const threshold = el('input', { id: 'msThreshold', className: 'input input-bordered w-full', type: 'number', min: '1', value: '2' });
-  const feeInput = el('input', { id: 'msCreateFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
-  const otsInput = el('input', { id: 'msCreateOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  const weight1 = el('input', { id: 'msWeight1', className: 'input w-full', type: 'number', min: '1', value: '1' });
+  const weight2 = el('input', { id: 'msWeight2', className: 'input w-full', type: 'number', min: '1', value: '1' });
+  const threshold = el('input', { id: 'msThreshold', className: 'input w-full', type: 'number', min: '1', value: '2' });
+  const feeInput = el('input', { id: 'msCreateFee', className: 'input w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
+  const otsInput = el('input', { id: 'msCreateOts', className: 'input w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
 
   return el('section', { className: 'space-y-6' }, [
     el('h1', { className: 'text-3xl font-bold', text: 'Create multisig' }),
     el('p', { className: 'text-base-content/70', text: 'Creates a 2-of-N style address including this wallet as signatory 1.' }),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('p', { className: 'native-mono text-xs break-all', text: `Signatory 1: ${wallet.address}` }),
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Signatory 1 weight' }), weight1]),
@@ -2914,16 +2920,16 @@ function renderMultisigSpend() {
     return renderHome();
   }
   const nextOts = readNextOts(wallet.ots);
-  const msAddr = el('input', { id: 'msSpendAddress', className: 'input input-bordered w-full native-mono', placeholder: 'Multisig Q…' });
-  const toAddr = el('input', { id: 'msSpendTo', className: 'input input-bordered w-full native-mono', placeholder: 'Recipient Q…', value: wallet.address });
-  const amount = el('input', { id: 'msSpendAmount', className: 'input input-bordered w-full', type: 'number', min: '0', step: 'any', value: '1' });
-  const expiry = el('input', { id: 'msSpendExpiry', className: 'input input-bordered w-full', type: 'number', min: '1', value: String((Number(state.nodeInfo && state.nodeInfo.height) || 0) + 100) });
-  const feeInput = el('input', { id: 'msSpendFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
-  const otsInput = el('input', { id: 'msSpendOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  const msAddr = el('input', { id: 'msSpendAddress', className: 'input w-full native-mono', placeholder: 'Multisig Q…' });
+  const toAddr = el('input', { id: 'msSpendTo', className: 'input w-full native-mono', placeholder: 'Recipient Q…', value: wallet.address });
+  const amount = el('input', { id: 'msSpendAmount', className: 'input w-full', type: 'number', min: '0', step: 'any', value: '1' });
+  const expiry = el('input', { id: 'msSpendExpiry', className: 'input w-full', type: 'number', min: '1', value: String((Number(state.nodeInfo && state.nodeInfo.height) || 0) + 100) });
+  const feeInput = el('input', { id: 'msSpendFee', className: 'input w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
+  const otsInput = el('input', { id: 'msSpendOts', className: 'input w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
 
   return el('section', { className: 'space-y-6' }, [
     el('h1', { className: 'text-3xl font-bold', text: 'Multisig spend' }),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Multisig address' }), msAddr]),
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Recipient' }), toAddr]),
@@ -2996,16 +3002,16 @@ function renderMultisigVote() {
   const nextOts = readNextOts(wallet.ots);
   const sharedKey = el('input', {
     id: 'msVoteSharedKey',
-    className: 'input input-bordered w-full native-mono',
+    className: 'input w-full native-mono',
     placeholder: 'Spend transaction hash (shared key)',
   });
   const unvote = el('input', { id: 'msVoteUnvote', className: 'checkbox', type: 'checkbox' });
-  const feeInput = el('input', { id: 'msVoteFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
-  const otsInput = el('input', { id: 'msVoteOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  const feeInput = el('input', { id: 'msVoteFee', className: 'input w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
+  const otsInput = el('input', { id: 'msVoteOts', className: 'input w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
 
   return el('section', { className: 'space-y-6' }, [
     el('h1', { className: 'text-3xl font-bold', text: 'Multisig vote' }),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Shared key (spend tx hash)' }), sharedKey]),
         el('label', { className: 'label cursor-pointer justify-start gap-3' }, [
@@ -3118,7 +3124,7 @@ function renderKeybase() {
     const draft = state.identityDraft;
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Confirm Keybase identity' }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-2' }, [
           el('p', { text: `${draft.add ? 'Add' : 'Remove'} @${draft.keybaseId}` }),
           el('p', { className: 'native-mono text-xs break-all', text: `Sighash: ${draft.sigHash}` }),
@@ -3139,18 +3145,18 @@ function renderKeybase() {
     ]);
   }
   const nextOts = readNextOts(wallet.ots);
-  const userInput = el('input', { id: 'kbUsername', className: 'input input-bordered w-full', placeholder: 'keybase username' });
-  const hashInput = el('input', { id: 'kbSighash', className: 'input input-bordered w-full native-mono', placeholder: '66-character sighash', maxlength: '66' });
+  const userInput = el('input', { id: 'kbUsername', className: 'input w-full', placeholder: 'keybase username' });
+  const hashInput = el('input', { id: 'kbSighash', className: 'input w-full native-mono', placeholder: '66-character sighash', maxlength: '66' });
   const addRadio = el('input', { id: 'kbAdd', className: 'radio', type: 'radio', name: 'kbAction', checked: true });
   const removeRadio = el('input', { id: 'kbRemove', className: 'radio', type: 'radio', name: 'kbAction' });
-  const feeInput = el('input', { id: 'kbFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
-  const otsInput = el('input', { id: 'kbOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  const feeInput = el('input', { id: 'kbFee', className: 'input w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
+  const otsInput = el('input', { id: 'kbOts', className: 'input w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Keybase identity' }),
       el('p', { className: 'text-base-content/70', text: 'Publishes a Keybase add/remove proof as an on-chain message.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Username' }), userInput]),
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Sighash' }), hashInput]),
@@ -3230,7 +3236,7 @@ function renderGithub() {
     const draft = state.identityDraft;
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Confirm Github identity' }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-2' }, [
           el('p', { text: `${draft.add ? 'Add' : 'Remove'} @${draft.username} (id ${draft.githubUserId})` }),
           el('p', { className: 'native-mono text-xs break-all', text: `Sighash: ${draft.sigHash}` }),
@@ -3251,18 +3257,18 @@ function renderGithub() {
     ]);
   }
   const nextOts = readNextOts(wallet.ots);
-  const userInput = el('input', { id: 'ghUsername', className: 'input input-bordered w-full', placeholder: 'github username', value: (state.githubLookup && state.githubLookup.username) || '' });
-  const hashInput = el('input', { id: 'ghSighash', className: 'input input-bordered w-full native-mono', placeholder: '66-character sighash', maxlength: '66' });
+  const userInput = el('input', { id: 'ghUsername', className: 'input w-full', placeholder: 'github username', value: (state.githubLookup && state.githubLookup.username) || '' });
+  const hashInput = el('input', { id: 'ghSighash', className: 'input w-full native-mono', placeholder: '66-character sighash', maxlength: '66' });
   const addRadio = el('input', { id: 'ghAdd', className: 'radio', type: 'radio', name: 'ghAction', checked: true });
   const removeRadio = el('input', { id: 'ghRemove', className: 'radio', type: 'radio', name: 'ghAction' });
-  const feeInput = el('input', { id: 'ghFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
-  const otsInput = el('input', { id: 'ghOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  const feeInput = el('input', { id: 'ghFee', className: 'input w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
+  const otsInput = el('input', { id: 'ghOts', className: 'input w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Github identity' }),
       el('p', { className: 'text-base-content/70', text: 'Lookup a Github user id, then publish an add/remove proof on-chain.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Username' }), userInput]),
         state.githubLookup
@@ -3409,7 +3415,7 @@ function renderNfts() {
     const draft = state.nftMintDraft;
     return el('section', { className: 'space-y-6' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Confirm NFT mint' }),
-      el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
         el('div', { className: 'card-body gap-2' }, [
           el('p', { text: `Provider: ${draft.providerId}` }),
           el('p', { className: 'native-mono text-xs break-all', text: `Content hash: ${draft.contentHash}` }),
@@ -3461,7 +3467,7 @@ function renderNfts() {
       ? el('p', { className: 'text-base-content/60', text: 'Loading…' })
       : nfts.length === 0
         ? el('p', { className: 'text-base-content/60', id: 'nftEmpty', text: 'No NFTs held on this address.' })
-        : el('div', { className: 'overflow-x-auto card-gradient' }, [
+        : el('div', { className: 'overflow-x-auto card bg-base-100 card-border shadow-sm' }, [
           el('table', { className: 'table table-sm', id: 'nftBalancesTable' }, [
             el('thead', {}, [
               el('tr', {}, [
@@ -3502,18 +3508,18 @@ function renderNftMint() {
   const nextOts = readNextOts(wallet.ots);
   const providerInput = el('input', {
     id: 'nftProviderId',
-    className: 'input input-bordered w-full native-mono',
+    className: 'input w-full native-mono',
     placeholder: 'Provider id (8 hex chars)',
     maxlength: '10',
   });
   const jsonInput = el('textarea', {
     id: 'nftJson',
-    className: 'textarea textarea-bordered w-full native-mono min-h-32',
+    className: 'textarea w-full native-mono min-h-32',
     placeholder: '{"name":"My NFT","description":"..."}',
   });
   const feeInput = el('input', {
     id: 'nftMintFee',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     step: '0.000000001',
@@ -3521,7 +3527,7 @@ function renderNftMint() {
   });
   const otsInput = el('input', {
     id: 'nftMintOts',
-    className: 'input input-bordered w-full',
+    className: 'input w-full',
     type: 'number',
     min: '0',
     value: nextOts != null ? String(nextOts) : '0',
@@ -3532,7 +3538,7 @@ function renderNftMint() {
       el('h1', { className: 'text-3xl font-bold', text: 'Mint NFT' }),
       el('p', { className: 'text-base-content/70', text: 'Creates a 00FF00FF token with supply 1 owned by this wallet.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Provider id' }), providerInput]),
         el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Metadata JSON' }), jsonInput]),
@@ -3620,7 +3626,7 @@ async function confirmNftMint() {
 function renderVerify() {
   const hashInput = el('input', {
     id: 'verifyTxHash',
-    className: 'input input-bordered w-full native-mono',
+    className: 'input w-full native-mono',
     placeholder: '64-character transaction hash',
     autocomplete: 'off',
   });
@@ -3637,7 +3643,7 @@ function renderVerify() {
       el('h1', { className: 'text-3xl font-bold', text: 'Verify transaction' }),
       el('p', { className: 'text-base-content/70', text: 'Look up a transaction by hash on the selected network.' }),
     ]),
-    el('div', { className: 'card-gradient' }, [
+    el('div', { className: 'card bg-base-100 card-border shadow-sm' }, [
       el('div', { className: 'card-body gap-4' }, [
         el('fieldset', { className: 'fieldset' }, [
           el('legend', { className: 'fieldset-legend', text: 'Transaction hash' }),
@@ -3743,21 +3749,26 @@ function render() {
   else view = renderHome();
 
   root.appendChild(view);
-  if (state.error) {
-    root.appendChild(el('div', {
-      role: 'alert',
-      className: 'alert alert-error mt-4',
-    }, [
-      icon(['M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'], 'stroke-current shrink-0 h-6 w-6'),
-      el('span', { text: state.error }),
-    ]));
-  } else if (state.success) {
-    root.appendChild(el('div', {
-      role: 'alert',
-      className: 'alert alert-success mt-4',
-    }, [
-      el('span', { text: state.success }),
-    ]));
+
+  const toastRoot = document.getElementById('toastRoot');
+  if (toastRoot) {
+    toastRoot.replaceChildren();
+    if (state.error) {
+      toastRoot.appendChild(el('div', {
+        role: 'alert',
+        className: 'alert alert-error shadow-lg',
+      }, [
+        icon(['M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'], 'stroke-current shrink-0 h-6 w-6'),
+        el('span', { text: state.error }),
+      ]));
+    } else if (state.success) {
+      toastRoot.appendChild(el('div', {
+        role: 'alert',
+        className: 'alert alert-success shadow-lg',
+      }, [
+        el('span', { text: state.success }),
+      ]));
+    }
   }
 }
 
