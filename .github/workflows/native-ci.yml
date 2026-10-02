@@ -1,0 +1,152 @@
+name: Native Desktop CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'cursor/**'
+    paths:
+      - 'native/**'
+      - 'macos/**'
+      - 'windows/**'
+      - 'linux/**'
+      - '.scripts/native/**'
+      - '.github/workflows/native-ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'public/workers/**'
+      - 'public/vendor/**'
+  pull_request:
+    paths:
+      - 'native/**'
+      - 'macos/**'
+      - 'windows/**'
+      - 'linux/**'
+      - '.scripts/native/**'
+      - '.github/workflows/native-ci.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'public/workers/**'
+      - 'public/vendor/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-smoke:
+    name: native-smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Smoke test (loopback API + Host rejection)
+        run: npm run native:smoke-test
+
+      - name: Notarise encoding unit test
+        run: npm run native:notarise-test
+
+      - name: Ledger helper unit test
+        run: npm run native:ledger-test
+
+      - name: Identity encoding unit test
+        run: npm run native:identity-test
+
+      - name: NFT encoding unit test
+        run: npm run native:nft-test
+
+      - name: Build Linux shell package
+        run: npm run native:build:linux
+
+      - name: Package redistributable Linux app
+        run: npm run native:package:linux
+
+      - name: Upload Linux tarball
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: QRLWallet-linux-x64
+          path: .native/.dist/QRLWallet-linux-x64-v*.tar.gz
+          if-no-files-found: error
+          include-hidden-files: true
+
+  native-wallet:
+    name: native-wallet-unlock
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: native-smoke
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Detect mnemonic secret
+        id: mnemonic
+        env:
+          QRL_TEST_MNEMONIC: ${{ secrets.QRL_TEST_MNEMONIC }}
+        run: |
+          if [ -z "$QRL_TEST_MNEMONIC" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "QRL_TEST_MNEMONIC is not set — wallet unlock test will be skipped."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Chrome
+        if: steps.mnemonic.outputs.present == 'true'
+        run: |
+          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y google-chrome-stable || sudo apt-get install -y chromium-browser
+          fi
+          if [ -x /usr/bin/google-chrome ]; then
+            echo "CHROME_PATH=/usr/bin/google-chrome" >> "$GITHUB_ENV"
+          elif [ -x /usr/bin/chromium-browser ]; then
+            echo "CHROME_PATH=/usr/bin/chromium-browser" >> "$GITHUB_ENV"
+          elif [ -x /usr/bin/chromium ]; then
+            echo "CHROME_PATH=/usr/bin/chromium" >> "$GITHUB_ENV"
+          fi
+
+      - name: Wallet unlock test
+        if: steps.mnemonic.outputs.present == 'true'
+        env:
+          QRL_TEST_MNEMONIC: ${{ secrets.QRL_TEST_MNEMONIC }}
+        run: npm run native:wallet-test
+
+      - name: Transfer prepare/sign UI test
+        if: steps.mnemonic.outputs.present == 'true'
+        env:
+          QRL_TEST_MNEMONIC: ${{ secrets.QRL_TEST_MNEMONIC }}
+        run: npm run native:transfer-sign-test
+
+      - name: Token balances/create prepare UI test
+        if: steps.mnemonic.outputs.present == 'true'
+        env:
+          QRL_TEST_MNEMONIC: ${{ secrets.QRL_TEST_MNEMONIC }}
+        run: npm run native:token-sign-test
+
+      - name: Skip notice
+        if: steps.mnemonic.outputs.present != 'true'
+        run: echo "Skipped wallet unlock test (secret not configured)."

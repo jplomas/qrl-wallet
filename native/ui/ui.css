@@ -1,0 +1,51 @@
+/* Native desktop extras on top of daisyUI / QRL theme */
+
+.native-shell {
+  background:
+    radial-gradient(ellipse at 8% -10%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 42%),
+    radial-gradient(ellipse at 92% 0%, color-mix(in oklab, var(--color-primary) 16%, transparent), transparent 36%),
+    linear-gradient(165deg, var(--color-base-100), var(--color-base-200) 55%, #07131a);
+}
+
+.native-hero-brand {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 6vw, 3.75rem);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.native-mono {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.native-countdown {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.native-generating-panel {
+  animation: native-fade-up 0.45s ease-out both;
+}
+
+.native-spinner-phase {
+  animation: native-fade-up 0.4s ease-out both;
+}
+
+@keyframes native-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .native-generating-panel,
+  .native-spinner-phase {
+    animation: none;
+  }
+}

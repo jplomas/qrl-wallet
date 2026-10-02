@@ -16,6 +16,11 @@ local.json
 /mainnet.json
 .electrify/dist
 .electrify/.dist
+.native/.dist
+.native/tmp
+.native/app
+.native/bin
+.native/cache
 /.yarn
 yarn.lock
 .electrify/yarn.lock

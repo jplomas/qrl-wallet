@@ -10,7 +10,7 @@
 
 This is the QRL wallet application developed by The QRL team, and hosted on wallet.theqrl.org
 
-It provides both web and desktop interfaces using [Meteor](https://www.meteor.com/), [Tailwind CSS](https://tailwindcss.com/), [daisyUI](https://daisyui.com/), [NodeJS](https://nodejs.org/en/) and [Electron](https://electronjs.org/).
+It provides both web and desktop interfaces using [Meteor](https://www.meteor.com/), [Tailwind CSS](https://tailwindcss.com/), [daisyUI](https://daisyui.com/), and [NodeJS](https://nodejs.org/en/). The legacy desktop client uses [Electron](https://electronjs.org/); native rewrites (macOS / Windows / Linux) live under `macos/`, `windows/`, and `linux/` and share build assets from the repository root.
 
 All secure XMSS operations are run in a web assembly compiled version of [qrllib](https://github.com/theQRL/qrllib) locally in your browser or desktop application. Keys stay in the memory space of the XMSS object, which is destroyed the moment you close the wallet, browser window or desktop application.
 
@@ -77,7 +77,34 @@ runner is reinstated.
 
 ## Run QRL Wallet (desktop client)
 
+Legacy Electron + Meteor shell:
+
 	npm run electron
+
+Native shells (no Electron, no Meteor) — shared UI/API under `native/`, OS WebViews in
+`macos/`, `windows/`, and `linux/`:
+
+	npm run native:backend
+	npm run native:dev:linux
+	npm run native:dev:macos
+	npm run native:dev:windows
+
+	npm run native:smoke-test
+	npm run native:wallet-test
+
+Redistributable packages (bundled Node — end users do not run npm):
+
+	npm run native:package:linux
+	npm run native:package:macos
+	npm run native:package:windows
+
+Artifacts land in `.native/.dist/` (Linux also gets a `.tar.gz`).
+
+	npm run native:build:macos
+	npm run native:build:windows
+	npm run native:build:linux
+
+See `native/README.md` plus the platform READMEs for security notes and requirements.
 
 ## Package Electron Client
 
