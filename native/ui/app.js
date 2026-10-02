@@ -34,6 +34,10 @@ import {
   buildKeybaseMessageBytes,
   buildGithubMessageBytes,
 } from './lib/identity.js';
+import {
+  buildNftFromJson,
+  isNftToken,
+} from './lib/nft.js';
 
 const state = {
   network: 'testnet',
@@ -1725,6 +1729,7 @@ function renderTools() {
     { id: 'multisig', title: 'Multisig', desc: 'Create, spend, and vote', view: 'multisig', seedOnly: false },
     { id: 'keybase', title: 'Keybase', desc: 'Link or unlink a Keybase identity', view: 'keybase', seedOnly: false },
     { id: 'github', title: 'Github', desc: 'Link or unlink a Github identity', view: 'github', seedOnly: false },
+    { id: 'nft', title: 'NFTs', desc: 'Balances and mint', view: 'nft', seedOnly: false },
   ].filter((tool) => !(tool.seedOnly && state.wallet && state.wallet.type === 'ledger'));
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
@@ -1748,7 +1753,7 @@ function renderTools() {
         render();
         if (tool.view === 'ots') void loadOtsTracker();
         if (tool.view === 'recovery') void loadRecoveryQr();
-        if (tool.view === 'tokens') void loadTokens();
+        if (tool.view === 'tokens' || tool.view === 'nft') void loadTokens();
         if (tool.view === 'multisig') void loadMultisig();
       },
     }, [
@@ -3727,6 +3732,8 @@ function render() {
   else if (state.view === 'multisig-vote') view = renderMultisigVote();
   else if (state.view === 'keybase') view = renderKeybase();
   else if (state.view === 'github') view = renderGithub();
+  else if (state.view === 'nft') view = renderNfts();
+  else if (state.view === 'nft-mint') view = renderNftMint();
   else if (state.view === 'tokens') view = renderTokens();
   else if (state.view === 'token-create') view = renderTokenCreate();
   else if (state.view === 'token-transfer') view = renderTokenTransfer();
