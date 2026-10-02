@@ -443,6 +443,32 @@ async function qrSvg(request = {}) {
   return { svg, text };
 }
 
+async function githubLookup(request = {}) {
+  const username = String(request.username || '').trim();
+  if (!/^[A-Za-z0-9-]{1,39}$/.test(username)) {
+    throw new Error('Invalid Github username');
+  }
+  const response = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'QRLWallet-Native',
+    },
+  });
+  if (response.status === 404) {
+    throw new Error(`Github user ${username} not found`);
+  }
+  if (!response.ok) {
+    throw new Error(`Github lookup failed (${response.status})`);
+  }
+  const data = await response.json();
+  return {
+    username: data.login || username,
+    id: data.id,
+    html_url: data.html_url,
+    name: data.name || null,
+  };
+}
+
 const handlers = {
   networks: async () => DEFAULT_NETWORKS,
   connect,
@@ -466,6 +492,7 @@ const handlers = {
   pushTransaction,
   createMessageTxn,
   qrSvg,
+  githubLookup,
   ledgerGetState: (request = {}) => ledger.getState(request.timeout_ms),
   ledgerPublicKey: (request = {}) => ledger.publicKey(request.timeout_ms),
   ledgerGetVersion: (request = {}) => ledger.getVersion(request.timeout_ms),

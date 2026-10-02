@@ -64,6 +64,9 @@ jobs:
       - name: Ledger helper unit test
         run: npm run native:ledger-test
 
+      - name: Identity encoding unit test
+        run: npm run native:identity-test
+
       - name: Build Linux shell package
         run: npm run native:build:linux
 

@@ -30,6 +30,10 @@ import {
   sha256HexOfArrayBuffer,
   NOTARISE_SHA256_ADDITIONAL_MAX,
 } from './lib/notarise.js';
+import {
+  buildKeybaseMessageBytes,
+  buildGithubMessageBytes,
+} from './lib/identity.js';
 
 const state = {
   network: 'testnet',
@@ -57,6 +61,9 @@ const state = {
   multisigSpends: null,
   multisigDraft: null,
   multisigResult: null,
+  identityDraft: null,
+  identityResult: null,
+  githubLookup: null,
 };
 
 const SHOR_PER_QUANTA = 1e9;
@@ -1716,6 +1723,8 @@ function renderTools() {
     { id: 'ots', title: 'OTS tracker', desc: 'Inspect used one-time keys', view: 'ots', seedOnly: false },
     { id: 'tokens', title: 'Tokens', desc: 'Balances, create, and transfer', view: 'tokens', seedOnly: false },
     { id: 'multisig', title: 'Multisig', desc: 'Create, spend, and vote', view: 'multisig', seedOnly: false },
+    { id: 'keybase', title: 'Keybase', desc: 'Link or unlink a Keybase identity', view: 'keybase', seedOnly: false },
+    { id: 'github', title: 'Github', desc: 'Link or unlink a Github identity', view: 'github', seedOnly: false },
   ].filter((tool) => !(tool.seedOnly && state.wallet && state.wallet.type === 'ledger'));
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
@@ -3080,6 +3089,290 @@ async function confirmMultisig() {
   }
 }
 
+function renderKeybase() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  if (state.identityResult && state.identityResult.kind === 'keybase') {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Keybase identity submitted' }),
+      el('p', { className: 'native-mono text-sm break-all', id: 'keybaseTxHash', text: state.identityResult.txnHash }),
+      el('button', {
+        className: 'btn btn-primary',
+        type: 'button',
+        text: 'Back to tools',
+        onClick: () => { state.identityResult = null; state.view = 'tools'; render(); },
+      }),
+    ]);
+  }
+  if (state.identityDraft && state.identityDraft.kind === 'keybase' && state.identityDraft.prepared) {
+    const draft = state.identityDraft;
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Confirm Keybase identity' }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-2' }, [
+          el('p', { text: `${draft.add ? 'Add' : 'Remove'} @${draft.keybaseId}` }),
+          el('p', { className: 'native-mono text-xs break-all', text: `Sighash: ${draft.sigHash}` }),
+          el('p', { text: `Fee: ${draft.feeQuanta} · OTS: ${draft.otsIndex}` }),
+          el('div', { className: 'card-actions justify-between' }, [
+            el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.identityDraft = null; render(); } }),
+            el('button', {
+              id: 'confirmKeybaseBtn',
+              className: 'btn btn-primary',
+              type: 'button',
+              disabled: state.busy || wallet.type === 'ledger',
+              text: wallet.type === 'ledger' ? 'Ledger identity signing not yet supported' : (state.busy ? 'Signing…' : 'Sign & send'),
+              onClick: () => { void confirmIdentity(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+  const nextOts = readNextOts(wallet.ots);
+  const userInput = el('input', { id: 'kbUsername', className: 'input input-bordered w-full', placeholder: 'keybase username' });
+  const hashInput = el('input', { id: 'kbSighash', className: 'input input-bordered w-full native-mono', placeholder: '66-character sighash', maxlength: '66' });
+  const addRadio = el('input', { id: 'kbAdd', className: 'radio', type: 'radio', name: 'kbAction', checked: true });
+  const removeRadio = el('input', { id: 'kbRemove', className: 'radio', type: 'radio', name: 'kbAction' });
+  const feeInput = el('input', { id: 'kbFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
+  const otsInput = el('input', { id: 'kbOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Keybase identity' }),
+      el('p', { className: 'text-base-content/70', text: 'Publishes a Keybase add/remove proof as an on-chain message.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Username' }), userInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Sighash' }), hashInput]),
+        el('div', { className: 'flex gap-6' }, [
+          el('label', { className: 'label cursor-pointer gap-2' }, [addRadio, el('span', { className: 'label-text', text: 'Add' })]),
+          el('label', { className: 'label cursor-pointer gap-2' }, [removeRadio, el('span', { className: 'label-text', text: 'Remove' })]),
+        ]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.view = 'tools'; render(); } }),
+          el('button', {
+            id: 'prepareKeybaseBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              try {
+                const message = buildKeybaseMessageBytes({
+                  keybaseId: userInput.value,
+                  sigHash: hashInput.value,
+                  add: Boolean(addRadio.checked),
+                });
+                const feeQuanta = Number(feeInput.value);
+                const otsIndex = Number(otsInput.value);
+                setBusy(true);
+                setError('');
+                const prepared = await api('createMessageTxn', {
+                  network: state.network,
+                  message: Array.from(message),
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.identityDraft = {
+                  kind: 'keybase',
+                  prepared,
+                  otsIndex,
+                  feeQuanta,
+                  keybaseId: userInput.value.trim(),
+                  sigHash: hashInput.value.trim(),
+                  add: Boolean(addRadio.checked),
+                };
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function renderGithub() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  if (state.identityResult && state.identityResult.kind === 'github') {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Github identity submitted' }),
+      el('p', { className: 'native-mono text-sm break-all', id: 'githubTxHash', text: state.identityResult.txnHash }),
+      el('button', {
+        className: 'btn btn-primary',
+        type: 'button',
+        text: 'Back to tools',
+        onClick: () => { state.identityResult = null; state.view = 'tools'; render(); },
+      }),
+    ]);
+  }
+  if (state.identityDraft && state.identityDraft.kind === 'github' && state.identityDraft.prepared) {
+    const draft = state.identityDraft;
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Confirm Github identity' }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-2' }, [
+          el('p', { text: `${draft.add ? 'Add' : 'Remove'} @${draft.username} (id ${draft.githubUserId})` }),
+          el('p', { className: 'native-mono text-xs break-all', text: `Sighash: ${draft.sigHash}` }),
+          el('p', { text: `Fee: ${draft.feeQuanta} · OTS: ${draft.otsIndex}` }),
+          el('div', { className: 'card-actions justify-between' }, [
+            el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.identityDraft = null; render(); } }),
+            el('button', {
+              id: 'confirmGithubBtn',
+              className: 'btn btn-primary',
+              type: 'button',
+              disabled: state.busy || wallet.type === 'ledger',
+              text: wallet.type === 'ledger' ? 'Ledger identity signing not yet supported' : (state.busy ? 'Signing…' : 'Sign & send'),
+              onClick: () => { void confirmIdentity(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+  const nextOts = readNextOts(wallet.ots);
+  const userInput = el('input', { id: 'ghUsername', className: 'input input-bordered w-full', placeholder: 'github username', value: (state.githubLookup && state.githubLookup.username) || '' });
+  const hashInput = el('input', { id: 'ghSighash', className: 'input input-bordered w-full native-mono', placeholder: '66-character sighash', maxlength: '66' });
+  const addRadio = el('input', { id: 'ghAdd', className: 'radio', type: 'radio', name: 'ghAction', checked: true });
+  const removeRadio = el('input', { id: 'ghRemove', className: 'radio', type: 'radio', name: 'ghAction' });
+  const feeInput = el('input', { id: 'ghFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
+  const otsInput = el('input', { id: 'ghOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Github identity' }),
+      el('p', { className: 'text-base-content/70', text: 'Lookup a Github user id, then publish an add/remove proof on-chain.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Username' }), userInput]),
+        state.githubLookup
+          ? el('p', { className: 'text-sm', id: 'githubLookupResult', text: `Found id ${state.githubLookup.id} · ${state.githubLookup.html_url || ''}` })
+          : null,
+        el('button', {
+          id: 'lookupGithubBtn',
+          className: 'btn btn-outline btn-sm self-start',
+          type: 'button',
+          disabled: state.busy,
+          text: state.busy ? 'Looking up…' : 'Lookup Github ID',
+          onClick: async () => {
+            setBusy(true);
+            setError('');
+            try {
+              state.githubLookup = await api('githubLookup', { username: userInput.value.trim() });
+              render();
+            } catch (error) {
+              state.githubLookup = null;
+              setError(error.message || String(error));
+            } finally {
+              setBusy(false);
+            }
+          },
+        }),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Sighash' }), hashInput]),
+        el('div', { className: 'flex gap-6' }, [
+          el('label', { className: 'label cursor-pointer gap-2' }, [addRadio, el('span', { className: 'label-text', text: 'Add' })]),
+          el('label', { className: 'label cursor-pointer gap-2' }, [removeRadio, el('span', { className: 'label-text', text: 'Remove' })]),
+        ]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.view = 'tools'; render(); } }),
+          el('button', {
+            id: 'prepareGithubBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              try {
+                if (!state.githubLookup || !state.githubLookup.id) {
+                  setError('Lookup a Github user first');
+                  return;
+                }
+                const message = buildGithubMessageBytes({
+                  githubUserId: state.githubLookup.id,
+                  sigHash: hashInput.value,
+                  add: Boolean(addRadio.checked),
+                });
+                const feeQuanta = Number(feeInput.value);
+                const otsIndex = Number(otsInput.value);
+                setBusy(true);
+                setError('');
+                const prepared = await api('createMessageTxn', {
+                  network: state.network,
+                  message: Array.from(message),
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.identityDraft = {
+                  kind: 'github',
+                  prepared,
+                  otsIndex,
+                  feeQuanta,
+                  username: state.githubLookup.username,
+                  githubUserId: state.githubLookup.id,
+                  sigHash: hashInput.value.trim(),
+                  add: Boolean(addRadio.checked),
+                };
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function confirmIdentity() {
+  const wallet = state.wallet;
+  const draft = state.identityDraft;
+  if (!wallet || !draft || !draft.prepared) return;
+  if (wallet.type === 'ledger') {
+    setError('Ledger identity signing is not supported yet');
+    return;
+  }
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const xmss = ensureXmssFromWallet(wallet);
+    const signed = signMessageTransaction(xmss, draft.prepared, draft.otsIndex);
+    const pushed = await api('pushTransaction', {
+      network: state.network,
+      transaction_signed: signed.signedTx,
+    });
+    state.identityResult = {
+      kind: draft.kind,
+      txnHash: (pushed && pushed.tx_hash) || signed.txnHash,
+    };
+    state.identityDraft = null;
+    render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
+
 function renderVerify() {
   const hashInput = el('input', {
     id: 'verifyTxHash',
@@ -3195,6 +3488,8 @@ function render() {
   else if (state.view === 'multisig-create') view = renderMultisigCreate();
   else if (state.view === 'multisig-spend') view = renderMultisigSpend();
   else if (state.view === 'multisig-vote') view = renderMultisigVote();
+  else if (state.view === 'keybase') view = renderKeybase();
+  else if (state.view === 'github') view = renderGithub();
   else if (state.view === 'tokens') view = renderTokens();
   else if (state.view === 'token-create') view = renderTokenCreate();
   else if (state.view === 'token-transfer') view = renderTokenTransfer();

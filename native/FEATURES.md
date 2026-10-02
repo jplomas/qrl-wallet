@@ -25,9 +25,9 @@ Base PR target: **`native`** branch.
 - [x] Document notarise
 - [x] Ledger open + sign transfer
 - [x] Multisig create/spend/vote
+- [x] Keybase + Github identity tools
 
 ## Next
-- [ ] Keybase + Github identity tools
 - [ ] NFT balances + mint
 
 ## Explicitly deferred / policy
