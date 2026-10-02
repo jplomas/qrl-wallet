@@ -36,7 +36,9 @@ function waitForQrllib(maxWaitMs) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now()
     const checkReady = () => {
-      if (typeof QRLLIB !== 'undefined' && typeof QRLLIB.Xmss !== 'undefined') {
+      if (typeof QRLLIB !== 'undefined'
+        && typeof QRLLIB.str2bin === 'function'
+        && typeof QRLLIB.Xmss !== 'undefined') {
         resolve()
         return
       }

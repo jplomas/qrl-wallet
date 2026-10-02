@@ -178,22 +178,26 @@ async function main() {
     await page.waitForFunction(() => {
       const text = document.body.innerText || '';
       const hasAddress = /Q[0-9a-fA-F]{78}/.test(text);
-      const hasBalance = /Balance[\s\S]*?([\d.,]+)\s*Quanta/i.test(text);
-      const hasOts = /Next OTS[\s\S]*?\d+/i.test(text);
-      const balancePlaceholder = /Balance[\s\S]*?—\s*Quanta/i.test(text);
-      const otsPlaceholder = /Next OTS[\s\S]*?—/i.test(text);
+      const hasBalance = /Balance/i.test(text) && /Quanta/i.test(text) && /[\d.,]+/.test(text);
+      const hasOts = /Next OTS/i.test(text) && /\d+/.test(text);
+      const balancePlaceholder = /Balance[\s\S]*?—/.test(text);
+      const otsPlaceholder = /Next OTS[\s\S]*?—/.test(text);
       return hasAddress && hasBalance && hasOts && !balancePlaceholder && !otsPlaceholder;
     }, { timeout: 180000 });
 
     const snapshot = await page.evaluate(() => {
       const text = document.body.innerText || '';
       const address = (text.match(/Q[0-9a-fA-F]{78}/) || [])[0] || null;
-      const balanceMatch = text.match(/Balance\s*([\d.,]+)\s*Quanta/i);
+      const balanceMatch = text.match(/Balance\s*([\d.,]+)/i);
       const otsMatch = text.match(/Next OTS\s*(\d+)/i);
+      const mnemonicVisible = Boolean(document.getElementById('mnemonicReveal'));
+      const revealBtn = document.getElementById('revealMnemonicBtn');
       return {
         address,
         balanceText: balanceMatch ? balanceMatch[1] : null,
         nextOts: otsMatch ? Number(otsMatch[1]) : null,
+        mnemonicVisible,
+        hasRevealBtn: Boolean(revealBtn),
         desktop: window.__QRL_NATIVE_DESKTOP__ === true,
         bodyPreview: text.slice(0, 800),
       };
@@ -208,6 +212,20 @@ async function main() {
     if (snapshot.nextOts == null || Number.isNaN(snapshot.nextOts)) {
       throw new Error(`Next OTS missing after unlock. Preview:\n${snapshot.bodyPreview}`);
     }
+    if (snapshot.mnemonicVisible) {
+      throw new Error('Mnemonic should be hidden until the user reveals it');
+    }
+    if (!snapshot.hasRevealBtn) {
+      throw new Error('Show mnemonic control missing');
+    }
+
+    await page.click('#revealMnemonicBtn');
+    await page.waitForSelector('#mnemonicReveal', { timeout: 5000 });
+    const revealed = await page.$eval('#mnemonicReveal', (node) => (node.textContent || '').trim());
+    if (!revealed || revealed.split(/\s+/).length < 12) {
+      throw new Error('Revealed mnemonic looks invalid');
+    }
+
     if (pageErrors.length) {
       console.warn('[native:wallet-test] page errors:', pageErrors.slice(0, 5));
     }
@@ -216,6 +234,7 @@ async function main() {
     console.log(`[native:wallet-test] Address: ${snapshot.address}`);
     console.log(`[native:wallet-test] Balance: ${snapshot.balanceText} Quanta`);
     console.log(`[native:wallet-test] Next OTS: ${snapshot.nextOts}`);
+    console.log('[native:wallet-test] Mnemonic hidden until reveal: yes');
     console.log(`[native:wallet-test] Desktop flag: ${snapshot.desktop}`);
   } finally {
     if (browser) await browser.close();
