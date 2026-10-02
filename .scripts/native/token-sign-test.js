@@ -78,9 +78,55 @@ function waitForHealth(base) {
   });
 }
 
+function getAsset(base, pathname) {
+  return new Promise((resolve, reject) => {
+    http.get(`${base}${pathname}`, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        resolve({
+          status: res.statusCode,
+          contentType: res.headers['content-type'] || '',
+          body: Buffer.concat(chunks).toString('utf8'),
+        });
+      });
+    }).on('error', reject);
+  });
+}
+
+function ensureQrllibVendor() {
+  const vendorPath = path.join(PROJECT_ROOT, 'public', 'vendor', 'qrllib', 'offline-libjsqrl.js');
+  if (fs.existsSync(vendorPath)) return;
+  const fromNpm = path.join(PROJECT_ROOT, 'node_modules', 'qrllib', 'build', 'offline-libjsqrl.js');
+  if (!fs.existsSync(fromNpm)) {
+    throw new Error('Missing public/vendor/qrllib/offline-libjsqrl.js');
+  }
+  fs.mkdirSync(path.dirname(vendorPath), { recursive: true });
+  fs.copyFileSync(fromNpm, vendorPath);
+  console.log('[native:token-sign-test] Copied offline-libjsqrl.js into public/vendor');
+}
+
+async function dumpUnlockFailure(page, pageErrors, label) {
+  const preview = await page.evaluate(() => ({
+    text: (document.body.innerText || '').slice(0, 1200),
+    hasSeed: Boolean(document.getElementById('seedInput')),
+    alert: ([...document.querySelectorAll('[role=alert]')].map((n) => n.textContent || '').join(' | ')),
+    qrllib: typeof QRLLIB !== 'undefined' && typeof QRLLIB.str2bin === 'function',
+  })).catch(() => ({ text: '(unavailable)', hasSeed: null, alert: '', qrllib: null }));
+  console.error(`[native:token-sign-test] ${label}`);
+  console.error(`[native:token-sign-test] QRLLIB ready: ${preview.qrllib}`);
+  console.error(`[native:token-sign-test] alert: ${preview.alert || '(none)'}`);
+  console.error(`[native:token-sign-test] body preview:\n${preview.text}`);
+  if (pageErrors.length) {
+    console.error('[native:token-sign-test] page errors:', pageErrors.slice(0, 8));
+  }
+}
+
 async function main() {
   const chromePath = findChrome();
   if (!chromePath) throw new Error('Chrome not found');
+  ensureQrllibVendor();
+
   const puppeteer = await loadPuppeteer();
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
@@ -91,29 +137,67 @@ async function main() {
   });
 
   let browser;
+  const pageErrors = [];
   try {
     await waitForHealth(base);
+
+    const qrllibAsset = await getAsset(base, '/vendor/qrllib/offline-libjsqrl.js');
+    if (qrllibAsset.status !== 200 || !qrllibAsset.body.includes('QRLLIB=Module')) {
+      throw new Error('QRLLIB asset not served correctly from /vendor/qrllib/offline-libjsqrl.js');
+    }
+
     browser = await puppeteer.launch({
       executablePath: chromePath,
       headless: true,
       args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
     });
     const page = await browser.newPage();
+    page.on('pageerror', (err) => pageErrors.push(String(err && err.message ? err.message : err)));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') pageErrors.push(msg.text());
+    });
+
     const version = require('../../package.json').version;
     await page.setUserAgent(desktopUserAgent(version, 'X11; Linux x86_64'));
+    await page.evaluateOnNewDocument(() => {
+      window.__QRL_NATIVE_DESKTOP__ = true;
+    });
     await page.goto(base, { waitUntil: 'networkidle2', timeout: 120000 });
-    await page.waitForSelector('button');
+    await page.waitForSelector('button', { timeout: 30000 });
+
+    // Wait for QRLLIB before opening — unlock depends on str2bin/Xmss.
+    await page.waitForFunction(
+      () => typeof QRLLIB !== 'undefined' && typeof QRLLIB.str2bin === 'function' && QRLLIB.Xmss,
+      { timeout: 120000 },
+    );
 
     await page.evaluate(() => {
-      [...document.querySelectorAll('button')].find((b) => /open wallet/i.test(b.textContent || '')).click();
+      const open = [...document.querySelectorAll('button')]
+        .find((b) => /open wallet/i.test(b.textContent || ''));
+      if (!open) throw new Error('Open Wallet button missing');
+      open.click();
     });
-    await page.waitForSelector('#seedInput');
-    await page.type('#seedInput', TESTNET_MNEMONIC);
+    await page.waitForSelector('#seedInput', { timeout: 15000 });
+    await page.click('#seedInput', { clickCount: 3 });
+    await page.type('#seedInput', TESTNET_MNEMONIC, { delay: 0 });
     await page.evaluate(() => {
-      [...document.querySelectorAll('button')].find((b) => /^unlock$/i.test((b.textContent || '').trim())).click();
+      const unlock = [...document.querySelectorAll('button')]
+        .find((b) => /^unlock$/i.test((b.textContent || '').trim()));
+      if (!unlock) throw new Error('Unlock button missing');
+      unlock.click();
     });
-    await page.waitForFunction(() => /Q[0-9a-fA-F]{78}/.test(document.body.innerText || ''), { timeout: 180000 });
-    await page.waitForFunction(() => /Balance\s+([\d.,]+)/i.test(document.body.innerText || ''), { timeout: 60000 });
+
+    try {
+      await page.waitForFunction(() => {
+        const text = document.body.innerText || '';
+        return /Q[0-9a-fA-F]{78}/.test(text)
+          && /Balance\s+([\d.,]+)/i.test(text)
+          && /Next OTS\s+(\d+)/i.test(text);
+      }, { timeout: 180000 });
+    } catch (error) {
+      await dumpUnlockFailure(page, pageErrors, 'wallet unlock timed out');
+      throw error;
+    }
 
     const ots = await page.evaluate(() => {
       const m = document.body.innerText.match(/Next OTS\s+(\d+)/i);
@@ -121,7 +205,10 @@ async function main() {
     });
 
     await page.evaluate(() => {
-      [...document.querySelectorAll('button')].find((b) => /^tokens$/i.test((b.textContent || '').trim())).click();
+      const tokensBtn = [...document.querySelectorAll('button')]
+        .find((b) => /^tokens$/i.test((b.textContent || '').trim()));
+      if (!tokensBtn) throw new Error('Tokens button missing');
+      tokensBtn.click();
     });
     await page.waitForFunction(
       () => /No tokens held|tokenBalancesTable|Create token/i.test(document.body.innerText || ''),
@@ -134,9 +221,12 @@ async function main() {
     }
 
     await page.evaluate(() => {
-      [...document.querySelectorAll('button')].find((b) => /create token/i.test(b.textContent || '')).click();
+      const createBtn = [...document.querySelectorAll('button')]
+        .find((b) => /create token/i.test(b.textContent || ''));
+      if (!createBtn) throw new Error('Create token button missing');
+      createBtn.click();
     });
-    await page.waitForSelector('#tokenSymbol');
+    await page.waitForSelector('#tokenSymbol', { timeout: 15000 });
 
     const symbol = `T${Date.now().toString(36).slice(-5)}`.toUpperCase();
     await page.type('#tokenSymbol', symbol);
@@ -149,7 +239,15 @@ async function main() {
     await page.type('#tokenCreateOts', String(ots));
 
     await page.click('#prepareTokenCreateBtn');
-    await page.waitForSelector('#confirmTokenCreateBtn', { timeout: 90000 });
+    try {
+      await page.waitForSelector('#confirmTokenCreateBtn', { timeout: 90000 });
+    } catch (error) {
+      const alert = await page.evaluate(() => (
+        [...document.querySelectorAll('[role=alert]')].map((n) => n.textContent || '').join(' | ')
+      ));
+      console.error(`[native:token-sign-test] prepare failed alert: ${alert || '(none)'}`);
+      throw error;
+    }
 
     const confirmText = await page.evaluate(() => document.body.innerText);
     if (!/Confirm token create/i.test(confirmText) || !confirmText.includes(symbol)) {
