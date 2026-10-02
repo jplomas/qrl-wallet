@@ -69,6 +69,14 @@ function reviveSignedTransaction(tx = {}) {
     };
     if (!revived.transfer.message_data) delete revived.transfer.message_data;
   }
+  if (revived.message) {
+    revived.message = {
+      ...revived.message,
+      message_hash: revived.message.message_hash
+        ? toBuffer(revived.message.message_hash)
+        : undefined,
+    };
+  }
   return revived;
 }
 
@@ -123,6 +131,15 @@ async function getOTS(request = {}) {
     page_from: request.page_from || 1,
     page_count: request.page_count || 1,
     unused_ots_index_from: request.unused_ots_index_from || 0,
+  });
+  return serializeValue(response);
+}
+
+async function createMessageTxn(request = {}) {
+  const response = await callApiWithFailover(targetFor(request), 'GetMessageTxn', {
+    message: toBuffer(request.message),
+    fee: String(request.fee || 0),
+    xmss_pk: toBuffer(request.xmss_pk || request.pk),
   });
   return serializeValue(response);
 }
@@ -246,6 +263,7 @@ const handlers = {
   getTransactionsByAddress,
   transferCoins,
   pushTransaction,
+  createMessageTxn,
   qrSvg,
   ledgerGetState: () => ledger.getState(),
   ledgerPublicKey: () => ledger.publicKey(),

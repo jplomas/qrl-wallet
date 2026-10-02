@@ -8,6 +8,13 @@ import {
   downloadWalletFile,
   normalizeWalletRecord,
 } from './lib/wallet-v3.js';
+import {
+  otsIndexUsed,
+  otsKeysRemaining,
+  parseOtsBitfield,
+  totalSignaturesForHeight,
+} from './lib/ots.js';
+import { signMessageTransaction } from './lib/sign-message.js';
 
 const state = {
   network: 'testnet',
@@ -923,11 +930,23 @@ function renderWallet() {
   const nextOts = readNextOts(wallet.ots);
   const ots = nextOts != null ? String(nextOts) : '—';
   const otsFound = wallet.ots && wallet.ots.unused_ots_index_found;
+  const height = wallet.height || 10;
+  const totalSigs = totalSignaturesForHeight(height);
+  const parsedOts = wallet.ots ? parseOtsBitfield(wallet.ots, totalSigs) : { keys: {} };
+  const remaining = otsKeysRemaining(parsedOts.keys, totalSigs);
+  const lowOts = remaining > 0 && remaining <= Math.max(8, Math.floor(totalSigs * 0.05));
 
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Wallet' }),
       el('p', { className: 'native-mono text-sm text-base-content/80', text: wallet.address }),
+      lowOts
+        ? el('div', {
+          role: 'alert',
+          className: 'alert alert-warning text-sm',
+          text: `Low OTS keys remaining: ${remaining} of ${totalSigs}. Create a new wallet before you run out.`,
+        })
+        : null,
     ]),
     el('div', { className: 'stats stats-vertical sm:stats-horizontal bg-base-200/80 border border-base-content/10 w-full shadow' }, [
       el('div', { className: 'stat' }, [
@@ -1019,6 +1038,27 @@ function renderWallet() {
             onClick: () => {
               state.view = 'verify';
               state.verifyResult = null;
+              state.error = '';
+              render();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-outline btn-sm',
+            type: 'button',
+            text: 'OTS',
+            onClick: () => {
+              state.view = 'ots';
+              state.error = '';
+              render();
+              void loadOtsTracker();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-outline btn-sm',
+            type: 'button',
+            text: 'Tools',
+            onClick: () => {
+              state.view = 'tools';
               state.error = '';
               render();
             },
@@ -1242,6 +1282,12 @@ function renderTransfer() {
                 setError('OTS index must be a non-negative integer');
                 return;
               }
+              const totalSigs = totalSignaturesForHeight(wallet.height || 10);
+              const parsed = wallet.ots ? parseOtsBitfield(wallet.ots, totalSigs) : { keys: {} };
+              if (otsIndexUsed(parsed.keys, otsIndex)) {
+                setError(`OTS key ${otsIndex} appears used. Choosing a used key can permanently damage the wallet.`);
+                return;
+              }
               setBusy(true);
               setError('');
               try {
@@ -1438,6 +1484,295 @@ async function loadHistory() {
   }
 }
 
+function renderOts() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  const totalSigs = totalSignaturesForHeight(wallet.height || 10);
+  const parsed = wallet.otsTracker || (wallet.ots ? parseOtsBitfield(wallet.ots, totalSigs) : null);
+  const cells = [];
+  if (parsed) {
+    const show = Math.min(totalSigs, 256);
+    for (let i = 0; i < show; i += 1) {
+      const used = otsIndexUsed(parsed.keys, i);
+      cells.push(el('div', {
+        className: `w-3 h-3 rounded-sm ${used ? 'bg-error' : 'bg-success/70'}`,
+        title: `OTS ${i}: ${used ? 'used' : 'free'}`,
+      }));
+    }
+  }
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'OTS key tracker' }),
+      el('p', {
+        className: 'text-base-content/70',
+        text: parsed
+          ? `Next unused: ${parsed.nextKey ?? '—'} · Remaining (sampled): ${otsKeysRemaining(parsed.keys, Math.min(totalSigs, 256))} of first ${Math.min(totalSigs, 256)}`
+          : 'Loading OTS bitfield…',
+      }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('div', { className: 'flex flex-wrap gap-1 max-w-xl' }, cells.length ? cells : [
+          el('span', { className: 'loading loading-spinner text-primary' }),
+        ]),
+        el('p', { className: 'text-xs text-base-content/50', text: 'Green = unused · Red = used' }),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => { state.view = 'wallet'; render(); },
+          }),
+          el('button', {
+            className: 'btn btn-outline',
+            type: 'button',
+            text: 'Reload',
+            onClick: () => { void loadOtsTracker(); },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function loadOtsTracker() {
+  if (!state.wallet) return;
+  setBusy(true);
+  try {
+    const totalSigs = totalSignaturesForHeight(state.wallet.height || 10);
+    const pagesNeeded = Math.max(1, Math.ceil(Math.min(totalSigs, 1024) / 64));
+    const ots = await api('getOTS', {
+      network: state.network,
+      address: state.wallet.address,
+      page_from: 1,
+      page_count: pagesNeeded,
+      unused_ots_index_from: 0,
+    });
+    state.wallet.ots = ots;
+    state.wallet.otsTracker = parseOtsBitfield(ots, totalSigs);
+    if (state.view === 'ots') render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function renderTools() {
+  if (!state.wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  const tools = [
+    { id: 'message', title: 'Message', desc: 'Embed up to 80 bytes on-chain', view: 'message' },
+    { id: 'recovery', title: 'Recovery seed', desc: 'View mnemonic, hexseed, and QR', view: 'recovery' },
+    { id: 'verify', title: 'Verify TX', desc: 'Look up a transaction hash', view: 'verify' },
+    { id: 'ots', title: 'OTS tracker', desc: 'Inspect used one-time keys', view: 'ots' },
+  ];
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Tools' }),
+      el('p', { className: 'text-base-content/70', text: 'Seed-wallet utilities for this native client.' }),
+    ]),
+    el('div', { className: 'grid gap-3 sm:grid-cols-2' }, tools.map((tool) => el('button', {
+      className: 'card-gradient text-left p-4 hover:border-primary/40 transition-colors',
+      type: 'button',
+      onClick: () => {
+        state.view = tool.view;
+        state.error = '';
+        render();
+        if (tool.view === 'ots') void loadOtsTracker();
+        if (tool.view === 'recovery') void loadRecoveryQr();
+      },
+    }, [
+      el('h3', { className: 'font-bold', text: tool.title }),
+      el('p', { className: 'text-sm text-base-content/60', text: tool.desc }),
+    ]))),
+    el('button', {
+      className: 'btn btn-ghost',
+      type: 'button',
+      text: 'Back',
+      onClick: () => { state.view = 'wallet'; render(); },
+    }),
+  ]);
+}
+
+function renderRecovery() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Recovery seed' }),
+      el('p', { className: 'text-warning text-sm', text: 'Anyone with this seed can spend your funds. Keep it offline.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('div', {
+          id: 'recoveryQr',
+          className: 'bg-white rounded-lg p-3 self-start',
+        }, [
+          wallet.recoveryQrSvg
+            ? el('div', { html: wallet.recoveryQrSvg })
+            : el('span', { className: 'loading loading-spinner text-primary' }),
+        ]),
+        el('div', {}, [
+          el('p', { className: 'text-xs uppercase text-base-content/50', text: 'Mnemonic' }),
+          el('p', { className: 'native-mono text-sm', text: wallet.mnemonic }),
+        ]),
+        el('div', {}, [
+          el('p', { className: 'text-xs uppercase text-base-content/50', text: 'Hexseed' }),
+          el('p', { className: 'native-mono text-xs break-all', text: wallet.hexseed }),
+        ]),
+        el('button', {
+          className: 'btn btn-ghost self-start',
+          type: 'button',
+          text: 'Back',
+          onClick: () => { state.view = 'tools'; render(); },
+        }),
+      ]),
+    ]),
+  ]);
+}
+
+async function loadRecoveryQr() {
+  if (!state.wallet) return;
+  try {
+    const result = await api('qrSvg', { text: state.wallet.hexseed || state.wallet.address });
+    state.wallet.recoveryQrSvg = result.svg;
+    if (state.view === 'recovery') render();
+  } catch (error) {
+    setError(error.message || String(error));
+  }
+}
+
+function renderMessage() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  if (state.messageResult) {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Message sent' }),
+      el('p', { className: 'native-mono text-sm break-all', id: 'messageTxHash', text: state.messageResult.txnHash }),
+      el('button', {
+        className: 'btn btn-primary',
+        type: 'button',
+        text: 'Back to tools',
+        onClick: () => { state.messageResult = null; state.view = 'tools'; render(); },
+      }),
+    ]);
+  }
+
+  const msgInput = el('textarea', {
+    id: 'messageBody',
+    className: 'textarea textarea-bordered w-full',
+    maxlength: '80',
+    placeholder: 'Up to 80 bytes',
+  });
+  const feeInput = el('input', {
+    id: 'messageFee',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    step: '0.000000001',
+    value: '0.001',
+  });
+  const nextOts = readNextOts(wallet.ots);
+  const otsInput = el('input', {
+    id: 'messageOts',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    value: nextOts != null ? String(nextOts) : '0',
+  });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'On-chain message' }),
+      el('p', { className: 'text-base-content/70', text: 'Create, sign, and relay a message transaction (≤80 bytes).' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Message' }),
+          msgInput,
+        ]),
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }),
+          feeInput,
+        ]),
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'OTS key' }),
+          otsInput,
+        ]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => { state.view = 'tools'; render(); },
+          }),
+          el('button', {
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Sending…' : 'Sign & send',
+            onClick: async () => {
+              const text = msgInput.value;
+              const bytes = new TextEncoder().encode(text);
+              if (!text || bytes.length === 0 || bytes.length > 80) {
+                setError('Message must be 1–80 bytes');
+                return;
+              }
+              const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
+              const totalSigs = totalSignaturesForHeight(wallet.height || 10);
+              const parsed = wallet.ots ? parseOtsBitfield(wallet.ots, totalSigs) : { keys: {} };
+              if (otsIndexUsed(parsed.keys, otsIndex)) {
+                setError(`OTS key ${otsIndex} appears used`);
+                return;
+              }
+              setBusy(true);
+              setError('');
+              try {
+                await waitForQrllib();
+                const prepared = await api('createMessageTxn', {
+                  network: state.network,
+                  message: Array.from(bytes),
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                const xmss = ensureXmssFromWallet(wallet);
+                const signed = signMessageTransaction(xmss, prepared, otsIndex);
+                const pushed = await api('pushTransaction', {
+                  network: state.network,
+                  transaction_signed: signed.signedTx,
+                });
+                state.messageResult = {
+                  txnHash: (pushed && pushed.tx_hash) || signed.txnHash,
+                };
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
 function renderVerify() {
   const hashInput = el('input', {
     id: 'verifyTxHash',
@@ -1544,6 +1879,10 @@ function render() {
   else if (state.view === 'transfer') view = renderTransfer();
   else if (state.view === 'receive') view = renderReceive();
   else if (state.view === 'history') view = renderHistory();
+  else if (state.view === 'ots') view = renderOts();
+  else if (state.view === 'tools') view = renderTools();
+  else if (state.view === 'recovery') view = renderRecovery();
+  else if (state.view === 'message') view = renderMessage();
   else if (state.view === 'verify') view = renderVerify();
   else view = renderHome();
 
@@ -1572,10 +1911,24 @@ async function bootstrap() {
 
   const badge = document.getElementById('connectionBadge');
   const networkSelect = document.getElementById('networkSelect');
+  const brandHome = document.getElementById('brandHome');
+  const footerVersion = document.getElementById('footerVersion');
+  const explorerLink = document.getElementById('explorerLink');
 
   try {
     const health = await fetch('/api/health').then((r) => r.json());
     if (!health.ok) throw new Error('Backend unhealthy');
+    if (footerVersion) {
+      footerVersion.textContent = `QRL Wallet v${health.version || ''}`;
+    }
+
+    if (brandHome) {
+      brandHome.addEventListener('click', () => {
+        state.view = state.wallet ? 'wallet' : 'home';
+        state.error = '';
+        render();
+      });
+    }
 
     state.networks = await api('networks');
     networkSelect.replaceChildren();
@@ -1586,8 +1939,17 @@ async function bootstrap() {
         selected: network.id === state.network,
       }));
     }
+    const syncExplorer = () => {
+      const selected = state.networks.find((n) => n.id === state.network);
+      if (explorerLink && selected && selected.explorerUrl) {
+        explorerLink.href = selected.explorerUrl;
+        explorerLink.textContent = `${selected.name} explorer`;
+      }
+    };
+    syncExplorer();
     networkSelect.addEventListener('change', async () => {
       state.network = networkSelect.value;
+      syncExplorer();
       await refreshConnection();
       if (state.wallet) {
         await refreshWallet();
