@@ -52,7 +52,13 @@ async function getAddressState(request = {}) {
   const response = await callApiWithFailover(targetFor(request), 'GetOptimizedAddressState', {
     address: addressToBytes(request.address),
   });
-  return serializeValue(response);
+  const serialized = serializeValue(response);
+  // Match Meteor wallet: expose Q-prefixed address on state for clients.
+  if (serialized && serialized.state && serialized.state.address
+    && !String(serialized.state.address).startsWith('Q')) {
+    serialized.state.address = `Q${serialized.state.address}`;
+  }
+  return serialized;
 }
 
 async function getFullAddressState(request = {}) {
@@ -65,6 +71,9 @@ async function getFullAddressState(request = {}) {
 async function getOTS(request = {}) {
   const response = await callApiWithFailover(targetFor(request), 'GetOTS', {
     address: addressToBytes(request.address),
+    page_from: request.page_from || 1,
+    page_count: request.page_count || 1,
+    unused_ots_index_from: request.unused_ots_index_from || 0,
   });
   return serializeValue(response);
 }

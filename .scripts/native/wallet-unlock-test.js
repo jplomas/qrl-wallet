@@ -2,6 +2,7 @@
 
 /**
  * Functional test: open a testnet wallet from mnemonic via the native UI stack.
+ * Asserts checksummed address (Q+78 hex), non-placeholder balance, and Next OTS.
  */
 
 const fs = require('fs');
@@ -16,6 +17,8 @@ if (!TESTNET_MNEMONIC) {
   console.error('[native:wallet-test] Set QRL_TEST_MNEMONIC to a testnet mnemonic before running.');
   process.exit(1);
 }
+
+const ADDRESS_RE = /Q[0-9a-fA-F]{78}/;
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -76,9 +79,37 @@ function waitForHealth(base, attempts = 80) {
   });
 }
 
+function getJson(base, pathname) {
+  return new Promise((resolve, reject) => {
+    http.get(`${base}${pathname}`, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        if (res.statusCode !== 200) {
+          reject(new Error(`${pathname} → ${res.statusCode}: ${body.slice(0, 120)}`));
+          return;
+        }
+        resolve({ contentType: res.headers['content-type'] || '', body });
+      });
+    }).on('error', reject);
+  });
+}
+
 async function main() {
   const chromePath = findChrome();
   if (!chromePath) throw new Error('Chrome/Chromium not found');
+
+  const vendorPath = path.join(PROJECT_ROOT, 'public', 'vendor', 'qrllib', 'offline-libjsqrl.js');
+  if (!fs.existsSync(vendorPath)) {
+    const fromNpm = path.join(PROJECT_ROOT, 'node_modules', 'qrllib', 'build', 'offline-libjsqrl.js');
+    if (!fs.existsSync(fromNpm)) {
+      throw new Error('Missing public/vendor/qrllib/offline-libjsqrl.js');
+    }
+    fs.mkdirSync(path.dirname(vendorPath), { recursive: true });
+    fs.copyFileSync(fromNpm, vendorPath);
+    console.log('[native:wallet-test] Copied offline-libjsqrl.js into public/vendor');
+  }
 
   const puppeteer = await loadPuppeteer();
   const host = '127.0.0.1';
@@ -94,6 +125,16 @@ async function main() {
   let browser;
   try {
     await waitForHealth(base);
+
+    const qrllibAsset = await getJson(base, '/vendor/qrllib/offline-libjsqrl.js');
+    if (!/javascript|ecmascript/i.test(qrllibAsset.contentType)
+      && !qrllibAsset.body.includes('QRLLIB=Module')) {
+      throw new Error('QRLLIB asset not served correctly from /vendor/qrllib/offline-libjsqrl.js');
+    }
+    if (!qrllibAsset.body.includes('QRLLIB=Module')) {
+      throw new Error('QRLLIB asset body missing QRLLIB=Module assignment');
+    }
+
     browser = await puppeteer.launch({
       executablePath: chromePath,
       headless: true,
@@ -101,6 +142,12 @@ async function main() {
     });
 
     const page = await browser.newPage();
+    const pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(String(err && err.message ? err.message : err)));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') pageErrors.push(msg.text());
+    });
+
     const version = require('../../package.json').version;
     await page.setUserAgent(desktopUserAgent(version, 'X11; Linux x86_64'));
     await page.evaluateOnNewDocument(() => {
@@ -130,22 +177,45 @@ async function main() {
 
     await page.waitForFunction(() => {
       const text = document.body.innerText || '';
-      return /Q[0-9a-fA-F]{72}/.test(text) && /Balance/i.test(text);
+      const hasAddress = /Q[0-9a-fA-F]{78}/.test(text);
+      const hasBalance = /Balance[\s\S]*?([\d.,]+)\s*Quanta/i.test(text);
+      const hasOts = /Next OTS[\s\S]*?\d+/i.test(text);
+      const balancePlaceholder = /Balance[\s\S]*?—\s*Quanta/i.test(text);
+      const otsPlaceholder = /Next OTS[\s\S]*?—/i.test(text);
+      return hasAddress && hasBalance && hasOts && !balancePlaceholder && !otsPlaceholder;
     }, { timeout: 180000 });
 
     const snapshot = await page.evaluate(() => {
       const text = document.body.innerText || '';
-      const match = text.match(/Q[0-9a-fA-F]{72}/);
+      const address = (text.match(/Q[0-9a-fA-F]{78}/) || [])[0] || null;
+      const balanceMatch = text.match(/Balance\s*([\d.,]+)\s*Quanta/i);
+      const otsMatch = text.match(/Next OTS\s*(\d+)/i);
       return {
-        address: match ? match[0] : null,
+        address,
+        balanceText: balanceMatch ? balanceMatch[1] : null,
+        nextOts: otsMatch ? Number(otsMatch[1]) : null,
         desktop: window.__QRL_NATIVE_DESKTOP__ === true,
+        bodyPreview: text.slice(0, 800),
       };
     });
 
-    if (!snapshot.address) throw new Error('No wallet address after unlock');
+    if (!snapshot.address || !ADDRESS_RE.test(snapshot.address)) {
+      throw new Error(`Expected checksummed Q+78 hex address, got: ${snapshot.address}`);
+    }
+    if (!snapshot.balanceText) {
+      throw new Error(`Balance missing after unlock. Preview:\n${snapshot.bodyPreview}`);
+    }
+    if (snapshot.nextOts == null || Number.isNaN(snapshot.nextOts)) {
+      throw new Error(`Next OTS missing after unlock. Preview:\n${snapshot.bodyPreview}`);
+    }
+    if (pageErrors.length) {
+      console.warn('[native:wallet-test] page errors:', pageErrors.slice(0, 5));
+    }
 
     console.log('[native:wallet-test] PASS');
     console.log(`[native:wallet-test] Address: ${snapshot.address}`);
+    console.log(`[native:wallet-test] Balance: ${snapshot.balanceText} Quanta`);
+    console.log(`[native:wallet-test] Next OTS: ${snapshot.nextOts}`);
     console.log(`[native:wallet-test] Desktop flag: ${snapshot.desktop}`);
   } finally {
     if (browser) await browser.close();

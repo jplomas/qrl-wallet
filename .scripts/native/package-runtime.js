@@ -149,15 +149,25 @@ function main() {
   copyDir(path.join(PROJECT_ROOT, 'native', 'backend'), path.join(outRoot, 'native', 'backend'));
   copyDir(path.join(PROJECT_ROOT, 'native', 'ui'), path.join(outRoot, 'native', 'ui'));
 
-  // Shared assets used by the UI
+  // Shared assets used by the UI (includes qrllib WASM/JS under public/vendor)
   const publicSrc = path.join(PROJECT_ROOT, 'public');
   const publicDest = path.join(outRoot, 'public');
-  for (const name of ['workers', 'img', 'fonts', 'tailwind-output.css']) {
+  for (const name of ['workers', 'img', 'fonts', 'vendor', 'tailwind-output.css']) {
     const src = path.join(publicSrc, name);
     const dest = path.join(publicDest, name);
     if (!fs.existsSync(src)) continue;
     if (fs.statSync(src).isDirectory()) copyDir(src, dest);
     else copyFile(src, dest);
+  }
+
+  // Ensure offline QRLLIB is present even if public/vendor was not checked in yet.
+  const vendorQrllibDest = path.join(publicDest, 'vendor', 'qrllib', 'offline-libjsqrl.js');
+  if (!fs.existsSync(vendorQrllibDest)) {
+    const fromNpm = path.join(PROJECT_ROOT, 'node_modules', 'qrllib', 'build', 'offline-libjsqrl.js');
+    if (!fs.existsSync(fromNpm)) {
+      throw new Error('Missing public/vendor/qrllib/offline-libjsqrl.js and node_modules/qrllib');
+    }
+    copyFile(fromNpm, vendorQrllibDest);
   }
 
   // Proto bootstrap file

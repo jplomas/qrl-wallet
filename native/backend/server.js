@@ -205,6 +205,7 @@ function createServer() {
 
       if (url.pathname.startsWith('/public/') || url.pathname.startsWith('/workers/')
         || url.pathname.startsWith('/img/') || url.pathname.startsWith('/fonts/')
+        || url.pathname.startsWith('/vendor/')
         || url.pathname === '/tailwind-output.css') {
         const relative = url.pathname.startsWith('/public/')
           ? url.pathname.slice('/public/'.length)

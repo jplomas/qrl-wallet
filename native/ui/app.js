@@ -25,11 +25,12 @@ async function api(method, body = {}) {
   return payload.result;
 }
 
-function waitForQrllib(timeoutMs = 30000) {
+function waitForQrllib(timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     const started = Date.now();
     const tick = () => {
-      if (typeof QRLLIB !== 'undefined' && QRLLIB.Xmss) {
+      // Match Meteor: str2bin is the reliable "WASM ready" signal.
+      if (typeof QRLLIB !== 'undefined' && typeof QRLLIB.str2bin === 'function' && QRLLIB.Xmss) {
         resolve();
         return;
       }
@@ -41,6 +42,48 @@ function waitForQrllib(timeoutMs = 30000) {
     };
     tick();
   });
+}
+
+function isValidQrlAddress(address) {
+  return typeof address === 'string'
+    && /^Q[0-9a-fA-F]{78}$/.test(address);
+}
+
+function openXmssFromSeed(mode, value) {
+  const xmss = mode === 'hexseed'
+    ? QRLLIB.Xmss.fromHexSeed(value)
+    : QRLLIB.Xmss.fromMnemonic(value);
+  const address = xmss.getAddress();
+  if (!isValidQrlAddress(address)) {
+    throw new Error('Derived address is invalid — QRLLIB may not be fully initialised. Try again.');
+  }
+  return {
+    address,
+    pk: xmss.getPK(),
+    hexseed: xmss.getHexSeed(),
+    mnemonic: xmss.getMnemonic(),
+    xmss,
+    mode,
+  };
+}
+
+function readBalanceShor(addressState) {
+  if (!addressState) return null;
+  if (addressState.state && addressState.state.balance != null) {
+    return addressState.state.balance;
+  }
+  if (addressState.balance != null) return addressState.balance;
+  return null;
+}
+
+function readNextOts(otsResponse) {
+  if (!otsResponse) return null;
+  if (otsResponse.next_unused_ots_index != null) {
+    return otsResponse.next_unused_ots_index;
+  }
+  if (otsResponse.next_unused_ots != null) return otsResponse.next_unused_ots;
+  if (otsResponse.nextKey != null) return otsResponse.nextKey;
+  return null;
 }
 
 function formatQuanta(shorValue) {
@@ -189,21 +232,7 @@ function renderOpen() {
             setError('');
             try {
               await waitForQrllib();
-              const xmss = mode === 'hexseed'
-                ? QRLLIB.Xmss.fromHexSeed(value)
-                : QRLLIB.Xmss.fromMnemonic(value);
-              const address = xmss.getAddress();
-              if (!address) {
-                throw new Error('Invalid seed');
-              }
-              state.wallet = {
-                address,
-                pk: xmss.getPK(),
-                hexseed: xmss.getHexSeed(),
-                mnemonic: xmss.getMnemonic(),
-                xmss,
-                mode,
-              };
+              state.wallet = openXmssFromSeed(mode, value);
               state.view = 'wallet';
               await refreshWallet();
             } catch (error) {
@@ -258,13 +287,17 @@ function renderCreate() {
               crypto.getRandomValues(seed);
               const vec = new QRLLIB.Uint8Vector();
               for (let i = 0; i < seed.length; i += 1) vec.push_back(seed[i]);
-              const xmss = await QRLLIB.Xmss.fromParameters(
+              const xmss = QRLLIB.Xmss.fromParameters(
                 vec,
                 height,
                 QRLLIB.eHashFunction.SHAKE_128,
               );
+              const address = xmss.getAddress();
+              if (!isValidQrlAddress(address)) {
+                throw new Error('Generated address is invalid — QRLLIB may not be fully initialised');
+              }
               state.wallet = {
-                address: xmss.getAddress(),
+                address,
                 pk: xmss.getPK(),
                 hexseed: xmss.getHexSeed(),
                 mnemonic: xmss.getMnemonic(),
@@ -292,10 +325,11 @@ function renderWallet() {
     return renderHome();
   }
 
-  const balance = wallet.state ? formatQuanta(wallet.state.balance) : '—';
-  const ots = wallet.ots && wallet.ots.next_unused_ots != null
-    ? String(wallet.ots.next_unused_ots)
-    : '—';
+  const balanceShor = readBalanceShor(wallet.state);
+  const balance = balanceShor != null ? formatQuanta(balanceShor) : '—';
+  const nextOts = readNextOts(wallet.ots);
+  const ots = nextOts != null ? String(nextOts) : '—';
+  const otsFound = wallet.ots && wallet.ots.unused_ots_index_found;
 
   return el('section', { className: 'stack' }, [
     el('div', { className: 'hero' }, [
@@ -310,6 +344,9 @@ function renderWallet() {
       el('div', { className: 'stat' }, [
         el('span', { className: 'label', text: 'Next OTS' }),
         el('div', { className: 'value', text: ots }),
+        otsFound === false
+          ? el('span', { className: 'muted', text: 'index not confirmed on node' })
+          : null,
       ]),
       el('div', { className: 'stat' }, [
         el('span', { className: 'label', text: 'Network' }),
@@ -425,8 +462,8 @@ function renderTransfer() {
             const to = toInput.value.trim();
             const amountQuanta = Number(amountInput.value);
             const feeQuanta = Number(feeInput.value);
-            if (!/^Q[0-9a-fA-F]{72}$/.test(to)) {
-              setError('Destination must be a QRL address');
+            if (!isValidQrlAddress(to)) {
+              setError('Destination must be a QRL address (Q + 78 hex chars)');
               return;
             }
             if (!(amountQuanta > 0)) {
@@ -470,7 +507,13 @@ async function refreshWallet() {
     api('getOTS', {
       network: state.network,
       address: state.wallet.address,
-    }).catch(() => null),
+      page_from: 1,
+      page_count: 1,
+      unused_ots_index_from: 0,
+    }).catch((error) => {
+      console.error('getOTS failed', error);
+      return null;
+    }),
   ]);
   state.wallet.state = addressState;
   state.wallet.ots = ots;

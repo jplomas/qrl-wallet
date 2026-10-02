@@ -15,6 +15,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'public/workers/**'
+      - 'public/vendor/**'
   pull_request:
     paths:
       - 'native/**'
@@ -26,6 +27,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'public/workers/**'
+      - 'public/vendor/**'
   workflow_dispatch:
 
 permissions:
