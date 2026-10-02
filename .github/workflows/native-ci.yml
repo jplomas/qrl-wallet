@@ -123,6 +123,12 @@ jobs:
           QRL_TEST_MNEMONIC: ${{ secrets.QRL_TEST_MNEMONIC }}
         run: npm run native:wallet-test
 
+      - name: Transfer prepare/sign UI test
+        if: steps.mnemonic.outputs.present == 'true'
+        env:
+          QRL_TEST_MNEMONIC: ${{ secrets.QRL_TEST_MNEMONIC }}
+        run: npm run native:transfer-sign-test
+
       - name: Skip notice
         if: steps.mnemonic.outputs.present != 'true'
         run: echo "Skipped wallet unlock test (secret not configured)."

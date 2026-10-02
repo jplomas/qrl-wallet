@@ -111,6 +111,11 @@ async function main() {
       throw new Error('UI shell did not load');
     }
 
+    const qr = await postJson(`${base}/api/qrSvg`, { text: 'Q000400test' });
+    if (qr.status !== 200 || !qr.body.includes('"ok":true') || !qr.body.includes('<svg')) {
+      throw new Error(`qrSvg failed: ${qr.body.slice(0, 200)}`);
+    }
+
     const forbidden = await new Promise((resolve, reject) => {
       http.get(`${base}/api/health`, { headers: { Host: 'evil.example:80' } }, (res) => {
         resolve(res.statusCode);

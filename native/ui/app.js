@@ -1,5 +1,14 @@
 /* global QRLLIB */
 
+import { ensureXmssFromWallet, signTransferTransaction } from './lib/sign-transfer.js';
+import {
+  buildEncryptedEnvelope,
+  buildUnencryptedEnvelope,
+  decryptV3Envelope,
+  downloadWalletFile,
+  normalizeWalletRecord,
+} from './lib/wallet-v3.js';
+
 const state = {
   network: 'testnet',
   networks: [],
@@ -7,9 +16,14 @@ const state = {
   view: 'home',
   busy: false,
   error: '',
+  success: '',
   nodeInfo: null,
   revealMnemonic: false,
   generating: null,
+  transferDraft: null,
+  transferResult: null,
+  history: null,
+  verifyResult: null,
 };
 
 const SHOR_PER_QUANTA = 1e9;
@@ -180,6 +194,13 @@ function icon(paths, className = 'h-5 w-5') {
 
 function setError(message) {
   state.error = message || '';
+  state.success = '';
+  render();
+}
+
+function setSuccess(message) {
+  state.success = message || '';
+  state.error = '';
   render();
 }
 
@@ -344,6 +365,16 @@ function renderHome() {
             icon(['M12 4v16m8-8H4']),
             'Create Wallet',
           ]),
+          el('button', {
+            className: 'btn btn-ghost gap-2',
+            type: 'button',
+            onClick: () => {
+              state.view = 'verify';
+              state.verifyResult = null;
+              state.error = '';
+              render();
+            },
+          }, ['Verify TX']),
         ]),
         state.nodeInfo
           ? el('p', {
@@ -370,46 +401,109 @@ function renderOpen() {
     spellcheck: 'false',
   });
 
-  const mnemonicTab = el('a', {
-    className: 'tab tab-active',
-    role: 'tab',
-    text: 'Mnemonic',
-    onClick: (event) => {
-      event.preventDefault();
-      mode = 'mnemonic';
-      mnemonicTab.classList.add('tab-active');
-      hexTab.classList.remove('tab-active');
-      seedInput.placeholder = 'Enter mnemonic phrase';
-    },
+  const fileInput = el('input', {
+    id: 'walletFileInput',
+    className: 'file-input file-input-bordered w-full',
+    type: 'file',
+    accept: 'application/json,.json',
   });
-  const hexTab = el('a', {
-    className: 'tab',
-    role: 'tab',
-    text: 'Hexseed',
-    onClick: (event) => {
-      event.preventDefault();
-      mode = 'hexseed';
-      hexTab.classList.add('tab-active');
-      mnemonicTab.classList.remove('tab-active');
-      seedInput.placeholder = 'Enter hexseed';
-    },
+  const filePass = el('input', {
+    id: 'walletFilePassphrase',
+    className: 'input input-bordered w-full',
+    type: 'password',
+    placeholder: 'Passphrase (if encrypted)',
+    autocomplete: 'current-password',
   });
+
+  const seedPanel = el('div', { id: 'openSeedPanel', className: 'space-y-4' }, [
+    el('div', { className: 'tabs tabs-boxed bg-base-100/40 w-full' }, [
+      el('a', {
+        className: 'tab tab-active',
+        role: 'tab',
+        text: 'Mnemonic',
+        onClick: (event) => {
+          event.preventDefault();
+          mode = 'mnemonic';
+          event.currentTarget.classList.add('tab-active');
+          event.currentTarget.parentElement.querySelectorAll('.tab').forEach((t) => {
+            if (t !== event.currentTarget) t.classList.remove('tab-active');
+          });
+          seedInput.placeholder = 'Enter mnemonic phrase';
+        },
+      }),
+      el('a', {
+        className: 'tab',
+        role: 'tab',
+        text: 'Hexseed',
+        onClick: (event) => {
+          event.preventDefault();
+          mode = 'hexseed';
+          event.currentTarget.classList.add('tab-active');
+          event.currentTarget.parentElement.querySelectorAll('.tab').forEach((t) => {
+            if (t !== event.currentTarget) t.classList.remove('tab-active');
+          });
+          seedInput.placeholder = 'Enter hexseed';
+        },
+      }),
+    ]),
+    el('fieldset', { className: 'fieldset' }, [
+      el('legend', { className: 'fieldset-legend', text: 'Seed' }),
+      seedInput,
+    ]),
+  ]);
+
+  const filePanel = el('div', { id: 'openFilePanel', className: 'space-y-4 hidden' }, [
+    el('fieldset', { className: 'fieldset' }, [
+      el('legend', { className: 'fieldset-legend', text: 'Wallet file' }),
+      fileInput,
+    ]),
+    el('fieldset', { className: 'fieldset' }, [
+      el('legend', { className: 'fieldset-legend', text: 'Passphrase' }),
+      filePass,
+    ]),
+  ]);
+
+  let openMode = 'seed';
+  const modeTabs = el('div', { className: 'tabs tabs-boxed w-full mb-2' }, [
+    el('a', {
+      className: 'tab tab-active',
+      text: 'Seed',
+      onClick: (event) => {
+        event.preventDefault();
+        openMode = 'seed';
+        seedPanel.classList.remove('hidden');
+        filePanel.classList.add('hidden');
+        modeTabs.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
+        event.currentTarget.classList.add('tab-active');
+      },
+    }),
+    el('a', {
+      className: 'tab',
+      text: 'Wallet file',
+      onClick: (event) => {
+        event.preventDefault();
+        openMode = 'file';
+        seedPanel.classList.add('hidden');
+        filePanel.classList.remove('hidden');
+        modeTabs.querySelectorAll('.tab').forEach((t) => t.classList.remove('tab-active'));
+        event.currentTarget.classList.add('tab-active');
+      },
+    }),
+  ]);
 
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
       el('h1', { className: 'text-3xl font-bold', text: 'Open Wallet' }),
       el('p', {
         className: 'text-base-content/70',
-        text: 'Unlock from a mnemonic or hexseed. Nothing sensitive is sent to the local API except signed requests and address lookups.',
+        text: 'Unlock from a mnemonic, hexseed, or a saved v3 wallet file.',
       }),
     ]),
     el('div', { className: 'card-gradient' }, [
       el('div', { className: 'card-body gap-4' }, [
-        el('div', { className: 'tabs tabs-boxed bg-base-100/40 w-full' }, [mnemonicTab, hexTab]),
-        el('fieldset', { className: 'fieldset' }, [
-          el('legend', { className: 'fieldset-legend', text: 'Seed' }),
-          seedInput,
-        ]),
+        modeTabs,
+        seedPanel,
+        filePanel,
         el('div', { className: 'card-actions justify-between' }, [
           el('button', {
             className: 'btn btn-ghost',
@@ -426,16 +520,30 @@ function renderOpen() {
             disabled: state.busy,
             text: state.busy ? 'Unlocking…' : 'Unlock',
             onClick: async () => {
-              const value = seedInput.value.trim();
-              if (!value) {
-                setError('Enter a mnemonic or hexseed');
-                return;
-              }
               setBusy(true);
               setError('');
               try {
                 await waitForQrllib();
-                state.wallet = openXmssFromSeed(mode, value);
+                if (openMode === 'file') {
+                  const file = fileInput.files && fileInput.files[0];
+                  if (!file) throw new Error('Choose a wallet.json file');
+                  const raw = JSON.parse(await file.text());
+                  const unlocked = await decryptV3Envelope(raw, filePass.value || '');
+                  const record = normalizeWalletRecord(unlocked);
+                  state.wallet = {
+                    address: record.address,
+                    pk: record.pk,
+                    hexseed: record.hexseed,
+                    mnemonic: record.mnemonic,
+                    height: record.height,
+                    hashFunction: record.hashFunction,
+                    mode: 'file',
+                  };
+                } else {
+                  const value = seedInput.value.trim();
+                  if (!value) throw new Error('Enter a mnemonic or hexseed');
+                  state.wallet = openXmssFromSeed(mode, value);
+                }
                 state.revealMnemonic = false;
                 state.view = 'wallet';
                 await refreshWallet();
@@ -464,6 +572,14 @@ function renderCreate() {
     el('option', { value: '16', text: 'Height 16 — 65,536 signatures (~5–10 min)' }),
     el('option', { value: '18', text: 'Height 18 — 262,144 signatures (~20–30 min)' }),
   ]);
+  const hashSelect = el('select', {
+    id: 'hashFunction',
+    className: 'select select-bordered w-full bg-base-100',
+  }, [
+    el('option', { value: 'SHAKE_128', text: 'SHAKE_128 (default)', selected: true }),
+    el('option', { value: 'SHAKE_256', text: 'SHAKE_256' }),
+    el('option', { value: 'SHA2_256', text: 'SHA2_256' }),
+  ]);
 
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
@@ -480,6 +596,10 @@ function renderCreate() {
             el('legend', { className: 'fieldset-legend', text: 'XMSS tree height' }),
             heightSelect,
           ]),
+          el('fieldset', { className: 'fieldset' }, [
+            el('legend', { className: 'fieldset-legend', text: 'Hash function' }),
+            hashSelect,
+          ]),
           el('div', { className: 'card-actions justify-between' }, [
             el('button', {
               className: 'btn btn-ghost',
@@ -495,7 +615,8 @@ function renderCreate() {
               disabled: state.busy,
               onClick: () => {
                 const height = Number(heightSelect.value);
-                void createWallet(height);
+                const hashFunction = hashSelect.value;
+                void createWallet(height, hashFunction);
               },
             }, [
               icon(['M12 4v16m8-8H4']),
@@ -596,7 +717,7 @@ function renderGenerating() {
   ]);
 }
 
-async function createWallet(xmssHeight) {
+async function createWallet(xmssHeight, hashFunction = 'SHAKE_128') {
   const epoch = generationEpoch + 1;
   generationEpoch = epoch;
   setBusy(true);
@@ -615,7 +736,7 @@ async function createWallet(xmssHeight) {
 
     let generated;
     try {
-      generated = await generateWithWorker(seed, xmssHeight, 'SHAKE_128');
+      generated = await generateWithWorker(seed, xmssHeight, hashFunction);
     } catch (workerError) {
       if (epoch !== generationEpoch) return;
       console.warn('Worker generation failed, falling back to main thread:', workerError);
@@ -634,13 +755,15 @@ async function createWallet(xmssHeight) {
       hexseed: generated.hexseed,
       mnemonic: generated.mnemonic,
       height: xmssHeight,
+      hashFunction,
       mode: 'created',
     };
     state.revealMnemonic = false;
     state.generating = null;
     clearGenerationTimers();
-    state.view = 'wallet';
-    await refreshWallet();
+    state.view = 'backup';
+    render();
+    void loadBackupQr();
   } catch (error) {
     if (epoch !== generationEpoch) return;
     stopGenerationWorker();
@@ -651,6 +774,140 @@ async function createWallet(xmssHeight) {
     if (epoch === generationEpoch) {
       setBusy(false);
     }
+  }
+}
+
+function renderBackup() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+
+  const passphraseInput = el('input', {
+    id: 'backupPassphrase',
+    className: 'input input-bordered w-full',
+    type: 'password',
+    placeholder: 'Passphrase for encrypted save',
+    autocomplete: 'new-password',
+  });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Backup wallet' }),
+      el('p', {
+        className: 'text-base-content/70',
+        text: 'Save your wallet before using it. The mnemonic is shown once here — store it offline.',
+      }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('div', { className: 'flex flex-col md:flex-row gap-4 items-start' }, [
+          el('div', {
+            id: 'backupQr',
+            className: 'bg-white rounded-lg p-3 min-h-36 min-w-36 flex items-center justify-center',
+          }, [
+            wallet.backupQrSvg
+              ? el('div', { html: wallet.backupQrSvg })
+              : el('span', { className: 'loading loading-spinner text-primary' }),
+          ]),
+          el('div', { className: 'space-y-2 flex-1' }, [
+            el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'Address' }),
+            el('p', { className: 'native-mono text-sm break-all', text: wallet.address }),
+            el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'Mnemonic' }),
+            el('p', {
+              id: 'backupMnemonic',
+              className: 'native-mono text-sm text-warning bg-warning/10 border border-warning/30 rounded-lg p-3',
+              text: wallet.mnemonic,
+            }),
+            el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'Hexseed' }),
+            el('p', { className: 'native-mono text-xs break-all', text: wallet.hexseed }),
+          ]),
+        ]),
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Encrypted save passphrase' }),
+          passphraseInput,
+        ]),
+        el('div', { className: 'card-actions justify-between flex-wrap' }, [
+          el('button', {
+            className: 'btn btn-outline',
+            type: 'button',
+            text: 'Save encrypted',
+            onClick: async () => {
+              const passphrase = passphraseInput.value;
+              if (!passphrase || passphrase.length < 8) {
+                setError('Passphrase must be at least 8 characters');
+                return;
+              }
+              try {
+                const record = normalizeWalletRecord({
+                  address: wallet.address,
+                  pk: wallet.pk,
+                  hexseed: wallet.hexseed,
+                  mnemonic: wallet.mnemonic,
+                  height: wallet.height,
+                  hashFunction: wallet.hashFunction || 'SHAKE_128',
+                  index: 0,
+                });
+                const envelope = await buildEncryptedEnvelope(record, passphrase);
+                downloadWalletFile(envelope, `qrl-wallet-${wallet.address.slice(0, 10)}.json`);
+                setSuccess('Encrypted wallet file downloaded');
+              } catch (error) {
+                setError(error.message || String(error));
+              }
+            },
+          }),
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Save unencrypted',
+            onClick: () => {
+              try {
+                const record = normalizeWalletRecord({
+                  address: wallet.address,
+                  pk: wallet.pk,
+                  hexseed: wallet.hexseed,
+                  mnemonic: wallet.mnemonic,
+                  height: wallet.height,
+                  hashFunction: wallet.hashFunction || 'SHAKE_128',
+                  index: 0,
+                });
+                downloadWalletFile(
+                  buildUnencryptedEnvelope(record),
+                  `qrl-wallet-${wallet.address.slice(0, 10)}-UNENCRYPTED.json`,
+                );
+                setSuccess('Unencrypted wallet file downloaded — keep it private');
+              } catch (error) {
+                setError(error.message || String(error));
+              }
+            },
+          }),
+          el('button', {
+            className: 'btn btn-primary',
+            type: 'button',
+            text: 'Open wallet',
+            onClick: async () => {
+              state.view = 'wallet';
+              state.error = '';
+              state.success = '';
+              render();
+              await refreshWallet();
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function loadBackupQr() {
+  if (!state.wallet) return;
+  try {
+    const result = await api('qrSvg', { text: state.wallet.address });
+    state.wallet.backupQrSvg = result.svg;
+    if (state.view === 'backup') render();
+  } catch (error) {
+    console.warn('backup QR failed', error);
   }
 }
 
@@ -716,9 +973,9 @@ function renderWallet() {
             className: 'text-sm text-base-content/60',
             text: 'Mnemonic is hidden. Only reveal it when you need to back up this wallet. Never share it.',
           }),
-        el('div', { className: 'card-actions justify-end flex-wrap' }, [
+        el('div', { className: 'card-actions justify-end flex-wrap gap-2' }, [
           el('button', {
-            className: 'btn btn-ghost',
+            className: 'btn btn-ghost btn-sm',
             type: 'button',
             disabled: state.busy,
             text: 'Refresh',
@@ -734,22 +991,60 @@ function renderWallet() {
             },
           }),
           el('button', {
-            className: 'btn btn-outline',
+            className: 'btn btn-outline btn-sm',
             type: 'button',
-            text: 'Transfer',
+            text: 'Receive',
             onClick: () => {
-              state.view = 'transfer';
+              state.view = 'receive';
+              state.error = '';
+              render();
+              void loadReceiveQr();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-outline btn-sm',
+            type: 'button',
+            text: 'History',
+            onClick: () => {
+              state.view = 'history';
+              state.error = '';
+              render();
+              void loadHistory();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-outline btn-sm',
+            type: 'button',
+            text: 'Verify',
+            onClick: () => {
+              state.view = 'verify';
+              state.verifyResult = null;
               state.error = '';
               render();
             },
           }),
           el('button', {
-            className: 'btn btn-primary',
+            className: 'btn btn-outline btn-sm',
+            type: 'button',
+            text: 'Transfer',
+            onClick: () => {
+              state.view = 'transfer';
+              state.transferDraft = null;
+              state.transferResult = null;
+              state.error = '';
+              render();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-primary btn-sm',
             type: 'button',
             text: 'Lock',
             onClick: () => {
               state.wallet = null;
               state.revealMnemonic = false;
+              state.transferDraft = null;
+              state.transferResult = null;
+              state.history = null;
               state.view = 'home';
               state.error = '';
               render();
@@ -768,6 +1063,95 @@ function renderTransfer() {
     return renderHome();
   }
 
+  if (state.transferResult) {
+    return el('section', { className: 'space-y-6' }, [
+      el('div', { className: 'space-y-2' }, [
+        el('h1', { className: 'text-3xl font-bold', text: 'Transfer sent' }),
+        el('p', { className: 'text-base-content/70', text: 'Transaction relayed to the network.' }),
+      ]),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-3' }, [
+          el('p', { className: 'text-sm text-base-content/60', text: 'Transaction hash' }),
+          el('p', {
+            id: 'txHashResult',
+            className: 'native-mono text-sm break-all',
+            text: state.transferResult.txnHash,
+          }),
+          el('div', { className: 'card-actions justify-end' }, [
+            el('button', {
+              className: 'btn btn-primary',
+              type: 'button',
+              text: 'Back to wallet',
+              onClick: () => {
+                state.transferResult = null;
+                state.transferDraft = null;
+                state.view = 'wallet';
+                render();
+                void refreshWallet();
+              },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  if (state.transferDraft) {
+    const draft = state.transferDraft;
+    return el('section', { className: 'space-y-6' }, [
+      el('div', { className: 'space-y-2' }, [
+        el('h1', { className: 'text-3xl font-bold', text: 'Confirm transfer' }),
+        el('p', {
+          className: 'text-base-content/70',
+          text: 'Review details, then sign locally with the next OTS key and relay.',
+        }),
+      ]),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-3' }, [
+          el('div', {}, [
+            el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'To' }),
+            el('p', { className: 'native-mono text-sm', text: draft.to }),
+          ]),
+          el('div', { className: 'grid grid-cols-2 gap-3' }, [
+            el('div', {}, [
+              el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'Amount' }),
+              el('p', { className: 'font-semibold', text: `${draft.amountQuanta} Quanta` }),
+            ]),
+            el('div', {}, [
+              el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'Fee' }),
+              el('p', { className: 'font-semibold', text: `${draft.feeQuanta} Quanta` }),
+            ]),
+            el('div', {}, [
+              el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: 'OTS index' }),
+              el('p', { className: 'font-semibold', text: String(draft.otsIndex) }),
+            ]),
+          ]),
+          el('div', { className: 'card-actions justify-between' }, [
+            el('button', {
+              className: 'btn btn-ghost',
+              type: 'button',
+              disabled: state.busy,
+              text: 'Cancel',
+              onClick: () => {
+                state.transferDraft = null;
+                render();
+              },
+            }),
+            el('button', {
+              className: 'btn btn-primary',
+              type: 'button',
+              id: 'confirmTransferBtn',
+              disabled: state.busy,
+              text: state.busy ? 'Signing…' : 'Sign & send',
+              onClick: () => { void confirmAndRelayTransfer(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  const nextOts = readNextOts(wallet.ots);
   const toInput = el('input', {
     id: 'toAddress',
     className: 'input input-bordered w-full native-mono',
@@ -790,9 +1174,13 @@ function renderTransfer() {
     step: '0.000000001',
     value: '0.001',
   });
-  const status = el('p', {
-    className: 'text-sm text-base-content/60',
-    text: 'Transfers are signed locally, then pushed through the loopback API.',
+  const otsInput = el('input', {
+    id: 'otsKey',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    step: '1',
+    value: nextOts != null ? String(nextOts) : '0',
   });
 
   return el('section', { className: 'space-y-6' }, [
@@ -814,7 +1202,14 @@ function renderTransfer() {
           el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }),
           feeInput,
         ]),
-        status,
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'OTS key index' }),
+          otsInput,
+        ]),
+        el('p', {
+          className: 'text-sm text-base-content/60',
+          text: 'Prepared on the node, signed in this process with XMSS, then pushed over the loopback API.',
+        }),
         el('div', { className: 'card-actions justify-between' }, [
           el('button', {
             className: 'btn btn-ghost',
@@ -827,12 +1222,14 @@ function renderTransfer() {
           el('button', {
             className: 'btn btn-primary',
             type: 'button',
+            id: 'prepareTransferBtn',
             disabled: state.busy,
-            text: state.busy ? 'Sending…' : 'Prepare Transfer',
+            text: state.busy ? 'Preparing…' : 'Prepare',
             onClick: async () => {
               const to = toInput.value.trim();
               const amountQuanta = Number(amountInput.value);
               const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
               if (!isValidQrlAddress(to)) {
                 setError('Destination must be a QRL address (Q + 78 hex chars)');
                 return;
@@ -841,9 +1238,14 @@ function renderTransfer() {
                 setError('Enter a positive amount');
                 return;
               }
+              if (!Number.isInteger(otsIndex) || otsIndex < 0) {
+                setError('OTS index must be a non-negative integer');
+                return;
+              }
               setBusy(true);
               setError('');
               try {
+                await waitForQrllib();
                 const amountShor = Math.round(amountQuanta * SHOR_PER_QUANTA);
                 const feeShor = Math.round(feeQuanta * SHOR_PER_QUANTA);
                 const prepared = await api('transferCoins', {
@@ -854,8 +1256,245 @@ function renderTransfer() {
                   fee: feeShor,
                   xmss_pk: wallet.pk,
                 });
-                status.textContent = `Node prepared transfer. Response keys: ${Object.keys(prepared || {}).join(', ')}`;
-                status.className = 'text-sm text-success';
+                state.transferDraft = {
+                  to,
+                  amountQuanta,
+                  feeQuanta,
+                  amountShor,
+                  feeShor,
+                  otsIndex,
+                  prepared,
+                };
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function confirmAndRelayTransfer() {
+  const wallet = state.wallet;
+  const draft = state.transferDraft;
+  if (!wallet || !draft) return;
+
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const xmss = ensureXmssFromWallet(wallet);
+    const signed = signTransferTransaction(xmss, draft.prepared, draft.otsIndex);
+    const pushed = await api('pushTransaction', {
+      network: state.network,
+      transaction_signed: signed.signedTx,
+    });
+    const txnHash = (pushed && pushed.tx_hash) || signed.txnHash;
+    state.transferResult = {
+      txnHash,
+      signature: signed.signatureHex,
+      relayed: pushed && pushed.relayed,
+    };
+    state.transferDraft = null;
+    render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function renderReceive() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+
+  const qrWrap = el('div', {
+    id: 'receiveQr',
+    className: 'bg-white rounded-lg p-3 inline-block min-h-40 min-w-40 flex items-center justify-center',
+  }, [
+    state.wallet.receiveQrSvg
+      ? el('div', { html: state.wallet.receiveQrSvg })
+      : el('span', { className: 'loading loading-spinner loading-md text-primary' }),
+  ]);
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Receive' }),
+      el('p', { className: 'text-base-content/70', text: 'Share this address to receive Quanta.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body items-center text-center gap-4' }, [
+        qrWrap,
+        el('p', { className: 'native-mono text-sm break-all', text: wallet.address }),
+        el('div', { className: 'card-actions' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => {
+              state.view = 'wallet';
+              render();
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function loadReceiveQr() {
+  if (!state.wallet) return;
+  try {
+    const result = await api('qrSvg', { text: state.wallet.address });
+    state.wallet.receiveQrSvg = result.svg;
+    if (state.view === 'receive') render();
+  } catch (error) {
+    setError(error.message || String(error));
+  }
+}
+
+function renderHistory() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+
+  const rows = (state.history && state.history.transactions_detail) || [];
+  const list = rows.length
+    ? el('div', { className: 'space-y-2' }, rows.map((item) => {
+      const tx = item.transaction || item;
+      const hash = tx.tx && (tx.tx.transaction_hash || tx.tx.tx_hash);
+      const type = (tx.tx && tx.tx.transactionType) || (tx.tx && Object.keys(tx.tx).find((k) => !['public_key', 'signature', 'transaction_hash', 'fee', 'nonce', 'master_addr'].includes(k))) || 'tx';
+      return el('div', {
+        className: 'border border-base-content/10 rounded-lg p-3 bg-base-100/40',
+      }, [
+        el('p', { className: 'text-xs uppercase tracking-wide text-base-content/50', text: String(type) }),
+        el('p', {
+          className: 'native-mono text-xs break-all',
+          text: hash ? String(hash) : JSON.stringify(tx).slice(0, 120),
+        }),
+      ]);
+    }))
+    : el('p', {
+      className: 'text-sm text-base-content/60',
+      text: state.history ? 'No transactions found for this address.' : 'Loading…',
+    });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'History' }),
+      el('p', { className: 'text-base-content/70', text: 'Recent transactions for this address.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-3' }, [
+        list,
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => {
+              state.view = 'wallet';
+              render();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-outline',
+            type: 'button',
+            disabled: state.busy,
+            text: 'Reload',
+            onClick: () => { void loadHistory(); },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function loadHistory() {
+  if (!state.wallet) return;
+  setBusy(true);
+  try {
+    state.history = await api('getTransactionsByAddress', {
+      network: state.network,
+      address: state.wallet.address,
+      item_per_page: 10,
+      page_number: 1,
+    });
+    if (state.view === 'history') render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function renderVerify() {
+  const hashInput = el('input', {
+    id: 'verifyTxHash',
+    className: 'input input-bordered w-full native-mono',
+    placeholder: '64-character transaction hash',
+    autocomplete: 'off',
+  });
+
+  const detail = state.verifyResult
+    ? el('pre', {
+      className: 'native-mono text-xs whitespace-pre-wrap break-all bg-base-100/50 rounded-lg p-3 max-h-96 overflow-auto',
+      text: JSON.stringify(state.verifyResult, null, 2),
+    })
+    : null;
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Verify transaction' }),
+      el('p', { className: 'text-base-content/70', text: 'Look up a transaction by hash on the selected network.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Transaction hash' }),
+          hashInput,
+        ]),
+        detail,
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => {
+              state.view = state.wallet ? 'wallet' : 'home';
+              state.verifyResult = null;
+              render();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Looking up…' : 'Lookup',
+            onClick: async () => {
+              const hash = hashInput.value.trim().replace(/^0x/i, '');
+              if (!/^[0-9a-fA-F]{64}$/.test(hash)) {
+                setError('Enter a 64-character hex transaction hash');
+                return;
+              }
+              setBusy(true);
+              setError('');
+              try {
+                state.verifyResult = await api('getTxnHash', {
+                  network: state.network,
+                  txhash: hash,
+                });
+                render();
               } catch (error) {
                 setError(error.message || String(error));
               } finally {
@@ -900,8 +1539,12 @@ function render() {
   if (state.view === 'open') view = renderOpen();
   else if (state.view === 'create') view = renderCreate();
   else if (state.view === 'generating') view = renderGenerating();
+  else if (state.view === 'backup') view = renderBackup();
   else if (state.view === 'wallet') view = renderWallet();
   else if (state.view === 'transfer') view = renderTransfer();
+  else if (state.view === 'receive') view = renderReceive();
+  else if (state.view === 'history') view = renderHistory();
+  else if (state.view === 'verify') view = renderVerify();
   else view = renderHome();
 
   root.appendChild(view);
@@ -912,6 +1555,13 @@ function render() {
     }, [
       icon(['M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'], 'stroke-current shrink-0 h-6 w-6'),
       el('span', { text: state.error }),
+    ]));
+  } else if (state.success) {
+    root.appendChild(el('div', {
+      role: 'alert',
+      className: 'alert alert-success mt-4',
+    }, [
+      el('span', { text: state.success }),
     ]));
   }
 }
