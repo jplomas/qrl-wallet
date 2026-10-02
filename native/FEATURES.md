@@ -22,9 +22,9 @@ Base PR target: **`native`** branch.
 - [x] Recovery seed tool (mnemonic + hexseed + QR)
 - [x] Nav shell + explorer links + version footer
 - [x] Token balances + transfer + create
+- [x] Document notarise
 
 ## Next
-- [ ] Document notarise
 - [ ] Ledger open + sign
 - [ ] Multisig create/spend/vote
 - [ ] Keybase + Github identity tools

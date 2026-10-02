@@ -19,6 +19,12 @@ import {
   signTokenCreateTransaction,
   signTokenTransferTransaction,
 } from './lib/sign-token.js';
+import {
+  buildNotarisationHex,
+  notarisationHexToMessageBytes,
+  sha256HexOfArrayBuffer,
+  NOTARISE_SHA256_ADDITIONAL_MAX,
+} from './lib/notarise.js';
 
 const state = {
   network: 'testnet',
@@ -40,6 +46,8 @@ const state = {
   tokenCreateResult: null,
   tokenTransferDraft: null,
   tokenTransferResult: null,
+  notariseDraft: null,
+  notariseResult: null,
 };
 
 const SHOR_PER_QUANTA = 1e9;
@@ -1598,6 +1606,7 @@ function renderTools() {
   }
   const tools = [
     { id: 'message', title: 'Message', desc: 'Embed up to 80 bytes on-chain', view: 'message' },
+    { id: 'notarise', title: 'Notarise', desc: 'Anchor a document hash on-chain', view: 'notarise' },
     { id: 'recovery', title: 'Recovery seed', desc: 'View mnemonic, hexseed, and QR', view: 'recovery' },
     { id: 'verify', title: 'Verify TX', desc: 'Look up a transaction hash', view: 'verify' },
     { id: 'ots', title: 'OTS tracker', desc: 'Inspect used one-time keys', view: 'ots' },
@@ -1614,6 +1623,10 @@ function renderTools() {
       onClick: () => {
         state.view = tool.view;
         state.error = '';
+        if (tool.view === 'notarise') {
+          state.notariseDraft = null;
+          state.notariseResult = null;
+        }
         render();
         if (tool.view === 'ots') void loadOtsTracker();
         if (tool.view === 'recovery') void loadRecoveryQr();
@@ -1802,6 +1815,239 @@ function renderMessage() {
       ]),
     ]),
   ]);
+}
+
+function renderNotarise() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+
+  if (state.notariseResult) {
+    const result = state.notariseResult;
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Document notarised' }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-3' }, [
+          el('p', { className: 'text-xs uppercase text-base-content/50', text: 'Transaction' }),
+          el('p', { className: 'native-mono text-sm break-all', id: 'notariseTxHash', text: result.txnHash }),
+          el('p', { text: `File: ${result.fileName}` }),
+          el('p', { className: 'native-mono text-xs break-all', text: `SHA256: ${result.fileHash}` }),
+          result.additionalText
+            ? el('p', { text: `Note: ${result.additionalText}` })
+            : null,
+          el('button', {
+            className: 'btn btn-primary self-start',
+            type: 'button',
+            text: 'Back to tools',
+            onClick: () => {
+              state.notariseResult = null;
+              state.notariseDraft = null;
+              state.view = 'tools';
+              render();
+            },
+          }),
+        ]),
+      ]),
+    ]);
+  }
+
+  if (state.notariseDraft && state.notariseDraft.prepared) {
+    const draft = state.notariseDraft;
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Confirm notarisation' }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-2' }, [
+          el('p', { text: `File: ${draft.fileName}` }),
+          el('p', { className: 'native-mono text-xs break-all', text: `SHA256: ${draft.fileHash}` }),
+          el('p', { text: `Hash function: ${draft.hashFunction}` }),
+          draft.additionalText
+            ? el('p', { text: `Additional text: ${draft.additionalText}` })
+            : el('p', { className: 'text-base-content/60', text: 'No additional text' }),
+          el('p', { className: 'native-mono text-xs break-all', text: `Message hex: ${draft.messageHex}` }),
+          el('p', { text: `Fee: ${draft.feeQuanta} Quanta` }),
+          el('p', { text: `OTS: ${draft.otsIndex}` }),
+          el('div', { className: 'card-actions justify-between mt-2' }, [
+            el('button', {
+              className: 'btn btn-ghost',
+              type: 'button',
+              text: 'Back',
+              onClick: () => { state.notariseDraft = null; render(); },
+            }),
+            el('button', {
+              id: 'confirmNotariseBtn',
+              className: 'btn btn-primary',
+              type: 'button',
+              disabled: state.busy,
+              text: state.busy ? 'Signing…' : 'Sign & notarise',
+              onClick: () => { void confirmNotarise(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  const nextOts = readNextOts(wallet.ots);
+  const fileInput = el('input', {
+    id: 'notaryDocument',
+    className: 'file-input file-input-bordered w-full',
+    type: 'file',
+  });
+  const noteInput = el('input', {
+    id: 'notaryAdditionalText',
+    className: 'input input-bordered w-full',
+    maxlength: String(NOTARISE_SHA256_ADDITIONAL_MAX),
+    placeholder: `Optional note (max ${NOTARISE_SHA256_ADDITIONAL_MAX} bytes)`,
+  });
+  const feeInput = el('input', {
+    id: 'notaryFee',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    step: '0.000000001',
+    value: '0.001',
+  });
+  const otsInput = el('input', {
+    id: 'notaryOts',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    value: nextOts != null ? String(nextOts) : '0',
+  });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Notarise document' }),
+      el('p', {
+        className: 'text-base-content/70',
+        text: 'Stores a SHA-256 hash of your file on-chain (Meteor-compatible AFAFA encoding). The file itself is not uploaded.',
+      }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Document' }),
+          fileInput,
+        ]),
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Hash function' }),
+          el('input', {
+            className: 'input input-bordered w-full',
+            value: 'SHA256',
+            disabled: true,
+            id: 'notaryHashFunction',
+          }),
+        ]),
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Additional text' }),
+          noteInput,
+        ]),
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }),
+          feeInput,
+        ]),
+        el('fieldset', { className: 'fieldset' }, [
+          el('legend', { className: 'fieldset-legend', text: 'OTS key' }),
+          otsInput,
+        ]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => { state.view = 'tools'; render(); },
+          }),
+          el('button', {
+            id: 'prepareNotariseBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              const file = fileInput.files && fileInput.files[0];
+              if (!file) {
+                setError('Select a document to notarise');
+                return;
+              }
+              const additionalText = noteInput.value || '';
+              const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
+              const totalSigs = totalSignaturesForHeight(wallet.height || 10);
+              const parsed = wallet.ots ? parseOtsBitfield(wallet.ots, totalSigs) : { keys: {} };
+              if (otsIndexUsed(parsed.keys, otsIndex)) {
+                setError(`OTS key ${otsIndex} appears used`);
+                return;
+              }
+              setBusy(true);
+              setError('');
+              try {
+                const buffer = await file.arrayBuffer();
+                const fileHash = await sha256HexOfArrayBuffer(buffer);
+                const messageHex = buildNotarisationHex({
+                  fileHashHex: fileHash,
+                  additionalText,
+                  hashFunction: 'SHA256',
+                });
+                const messageBytes = notarisationHexToMessageBytes(messageHex);
+                const prepared = await api('createMessageTxn', {
+                  network: state.network,
+                  message: Array.from(messageBytes),
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.notariseDraft = {
+                  prepared,
+                  fileName: file.name,
+                  fileHash,
+                  hashFunction: 'SHA256',
+                  additionalText,
+                  messageHex,
+                  feeQuanta,
+                  otsIndex,
+                };
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function confirmNotarise() {
+  const wallet = state.wallet;
+  const draft = state.notariseDraft;
+  if (!wallet || !draft || !draft.prepared) return;
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const xmss = ensureXmssFromWallet(wallet);
+    const signed = signMessageTransaction(xmss, draft.prepared, draft.otsIndex);
+    const pushed = await api('pushTransaction', {
+      network: state.network,
+      transaction_signed: signed.signedTx,
+    });
+    state.notariseResult = {
+      txnHash: (pushed && pushed.tx_hash) || signed.txnHash,
+      fileName: draft.fileName,
+      fileHash: draft.fileHash,
+      additionalText: draft.additionalText,
+    };
+    state.notariseDraft = null;
+    render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
 }
 
 async function loadTokens() {
@@ -2399,6 +2645,7 @@ function render() {
   else if (state.view === 'tools') view = renderTools();
   else if (state.view === 'recovery') view = renderRecovery();
   else if (state.view === 'message') view = renderMessage();
+  else if (state.view === 'notarise') view = renderNotarise();
   else if (state.view === 'tokens') view = renderTokens();
   else if (state.view === 'token-create') view = renderTokenCreate();
   else if (state.view === 'token-transfer') view = renderTokenTransfer();

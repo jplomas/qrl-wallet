@@ -58,6 +58,9 @@ jobs:
       - name: Smoke test (loopback API + Host rejection)
         run: npm run native:smoke-test
 
+      - name: Notarise encoding unit test
+        run: npm run native:notarise-test
+
       - name: Build Linux shell package
         run: npm run native:build:linux
 
@@ -134,6 +137,9 @@ jobs:
         env:
           QRL_TEST_MNEMONIC: ${{ secrets.QRL_TEST_MNEMONIC }}
         run: npm run native:token-sign-test
+
+      - name: Notarise encoding unit test
+        run: npm run native:notarise-test
 
       - name: Skip notice
         if: steps.mnemonic.outputs.present != 'true'

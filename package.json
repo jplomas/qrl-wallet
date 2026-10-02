@@ -99,6 +99,7 @@
     "native:wallet-test": "node .scripts/native/wallet-unlock-test.js",
     "native:transfer-sign-test": "node .scripts/native/transfer-sign-test.js",
     "native:token-sign-test": "node .scripts/native/token-sign-test.js",
+    "native:notarise-test": "node .scripts/native/notarise-test.js",
     "native:dev": "node .scripts/native/dev.js",
     "native:dev:macos": "node .scripts/native/dev.js macos",
     "native:dev:windows": "node .scripts/native/dev.js windows",
