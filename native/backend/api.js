@@ -77,6 +77,29 @@ function reviveSignedTransaction(tx = {}) {
         : undefined,
     };
   }
+  if (revived.token) {
+    revived.token = {
+      ...revived.token,
+      symbol: revived.token.symbol != null ? toBuffer(revived.token.symbol) : undefined,
+      name: revived.token.name != null ? toBuffer(revived.token.name) : undefined,
+      owner: revived.token.owner != null ? toBuffer(revived.token.owner) : undefined,
+      decimals: revived.token.decimals != null ? String(revived.token.decimals) : undefined,
+      initial_balances: (revived.token.initial_balances || []).map((entry) => ({
+        address: toBuffer(entry.address),
+        amount: String(entry.amount),
+      })),
+    };
+  }
+  if (revived.transfer_token) {
+    revived.transfer_token = {
+      ...revived.transfer_token,
+      token_txhash: revived.transfer_token.token_txhash
+        ? toBuffer(revived.transfer_token.token_txhash)
+        : undefined,
+      addrs_to: (revived.transfer_token.addrs_to || []).map(toBuffer),
+      amounts: (revived.transfer_token.amounts || []).map((amount) => String(amount)),
+    };
+  }
   return revived;
 }
 
@@ -197,6 +220,86 @@ async function transferCoins(request = {}) {
   return serializeValue(response);
 }
 
+function utf8Buffer(value) {
+  if (Buffer.isBuffer(value) || value instanceof Uint8Array || Array.isArray(value)) {
+    return toBuffer(value);
+  }
+  return Buffer.from(String(value), 'utf8');
+}
+
+async function getTokensByAddress(request = {}) {
+  const full = await callApiWithFailover(targetFor(request), 'GetAddressState', {
+    address: addressToBytes(request.address),
+  });
+  const tokensMap = (full && full.state && full.state.tokens) || {};
+  const tokens = [];
+  for (const [tokenHash, balance] of Object.entries(tokensMap)) {
+    const entry = {
+      hash: tokenHash,
+      balance: String(balance),
+    };
+    try {
+      const obj = await callApiWithFailover(targetFor(request), 'GetObject', {
+        query: Buffer.from(tokenHash, 'hex'),
+      });
+      const tx = obj && obj.transaction && obj.transaction.tx;
+      const tokenDetails = tx && tx.token;
+      if (!tokenDetails) {
+        entry.unknown = true;
+        tokens.push(entry);
+        continue;
+      }
+      const decimals = Number(tokenDetails.decimals || 0);
+      const symbolBuf = toBuffer(tokenDetails.symbol);
+      const nameBuf = toBuffer(tokenDetails.name);
+      const symbolHex = symbolBuf.toString('hex');
+      const isNft = symbolHex.slice(0, 8).toLowerCase() === '00ff00ff';
+      entry.decimals = decimals;
+      entry.balance_display = Number(balance) / (10 ** decimals);
+      entry.is_nft = isNft;
+      entry.symbol = isNft ? symbolHex : symbolBuf.toString('utf8');
+      entry.name = isNft ? nameBuf.toString('hex') : nameBuf.toString('utf8');
+      tokens.push(entry);
+    } catch (error) {
+      entry.error = error.message || String(error);
+      tokens.push(entry);
+    }
+  }
+  return serializeValue({
+    address: request.address,
+    tokens,
+  });
+}
+
+async function createTokenTxn(request = {}) {
+  const payload = {
+    symbol: utf8Buffer(request.symbol),
+    name: utf8Buffer(request.name),
+    owner: addressToBytes(request.owner),
+    decimals: String(request.decimals != null ? request.decimals : 0),
+    initial_balances: (request.initial_balances || request.initialBalances || []).map((entry) => ({
+      address: addressToBytes(entry.address),
+      amount: String(entry.amount),
+    })),
+    fee: String(request.fee || 0),
+    xmss_pk: toBuffer(request.xmss_pk || request.pk || request.xmssPk),
+  };
+  const response = await callApiWithFailover(targetFor(request), 'GetTokenTxn', payload);
+  return serializeValue(response);
+}
+
+async function transferTokenTxn(request = {}) {
+  const payload = {
+    addresses_to: (request.addresses_to || []).map(addressToBytes),
+    amounts: (request.amounts || []).map((amount) => String(amount)),
+    token_txhash: toBuffer(request.token_txhash || request.tokenHash),
+    fee: String(request.fee || 0),
+    xmss_pk: toBuffer(request.xmss_pk || request.pk || request.xmssPk),
+  };
+  const response = await callApiWithFailover(targetFor(request), 'GetTransferTokenTxn', payload);
+  return serializeValue(response);
+}
+
 async function pushTransaction(request = {}) {
   const signed = request.transaction_signed
     || (request.extended_transaction_unsigned && request.extended_transaction_unsigned.tx)
@@ -261,6 +364,9 @@ const handlers = {
   getObject,
   getTxnHash,
   getTransactionsByAddress,
+  getTokensByAddress,
+  createTokenTxn,
+  transferTokenTxn,
   transferCoins,
   pushTransaction,
   createMessageTxn,

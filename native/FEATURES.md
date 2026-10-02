@@ -17,18 +17,18 @@ Base PR target: **`native`** branch.
 - [x] Verify transaction by txid
 - [x] Create options: hash function + backup screen (QR / hexseed / save)
 - [x] Wallet file save/open (v3 encrypted + plain)
+- [x] OTS key tracker + reuse / low-key warnings
+- [x] On-chain message tool
+- [x] Recovery seed tool (mnemonic + hexseed + QR)
+- [x] Nav shell + explorer links + version footer
+- [x] Token balances + transfer + create
 
 ## Next
-- [ ] OTS key tracker + reuse / low-key warnings
-- [ ] On-chain message tool
-- [ ] Recovery seed tool (mnemonic + hexseed + QR)
-- [ ] Token balances + transfer + create
 - [ ] Document notarise
 - [ ] Ledger open + sign
 - [ ] Multisig create/spend/vote
 - [ ] Keybase + Github identity tools
 - [ ] NFT balances + mint
-- [ ] Nav shell + explorer links + version footer
 
 ## Explicitly deferred / policy
 - Custom gRPC nodes (native allowlist keeps these off by default)

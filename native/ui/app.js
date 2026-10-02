@@ -15,6 +15,10 @@ import {
   totalSignaturesForHeight,
 } from './lib/ots.js';
 import { signMessageTransaction } from './lib/sign-message.js';
+import {
+  signTokenCreateTransaction,
+  signTokenTransferTransaction,
+} from './lib/sign-token.js';
 
 const state = {
   network: 'testnet',
@@ -31,6 +35,11 @@ const state = {
   transferResult: null,
   history: null,
   verifyResult: null,
+  tokens: null,
+  tokenCreateDraft: null,
+  tokenCreateResult: null,
+  tokenTransferDraft: null,
+  tokenTransferResult: null,
 };
 
 const SHOR_PER_QUANTA = 1e9;
@@ -1045,6 +1054,21 @@ function renderWallet() {
           el('button', {
             className: 'btn btn-outline btn-sm',
             type: 'button',
+            text: 'Tokens',
+            onClick: () => {
+              state.view = 'tokens';
+              state.tokenCreateDraft = null;
+              state.tokenCreateResult = null;
+              state.tokenTransferDraft = null;
+              state.tokenTransferResult = null;
+              state.error = '';
+              render();
+              void loadTokens();
+            },
+          }),
+          el('button', {
+            className: 'btn btn-outline btn-sm',
+            type: 'button',
             text: 'OTS',
             onClick: () => {
               state.view = 'ots';
@@ -1085,6 +1109,11 @@ function renderWallet() {
               state.transferDraft = null;
               state.transferResult = null;
               state.history = null;
+              state.tokens = null;
+              state.tokenCreateDraft = null;
+              state.tokenCreateResult = null;
+              state.tokenTransferDraft = null;
+              state.tokenTransferResult = null;
               state.view = 'home';
               state.error = '';
               render();
@@ -1572,6 +1601,7 @@ function renderTools() {
     { id: 'recovery', title: 'Recovery seed', desc: 'View mnemonic, hexseed, and QR', view: 'recovery' },
     { id: 'verify', title: 'Verify TX', desc: 'Look up a transaction hash', view: 'verify' },
     { id: 'ots', title: 'OTS tracker', desc: 'Inspect used one-time keys', view: 'ots' },
+    { id: 'tokens', title: 'Tokens', desc: 'Balances, create, and transfer', view: 'tokens' },
   ];
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
@@ -1587,6 +1617,7 @@ function renderTools() {
         render();
         if (tool.view === 'ots') void loadOtsTracker();
         if (tool.view === 'recovery') void loadRecoveryQr();
+        if (tool.view === 'tokens') void loadTokens();
       },
     }, [
       el('h3', { className: 'font-bold', text: tool.title }),
@@ -1773,6 +1804,491 @@ function renderMessage() {
   ]);
 }
 
+async function loadTokens() {
+  if (!state.wallet) return;
+  try {
+    const result = await api('getTokensByAddress', {
+      network: state.network,
+      address: state.wallet.address,
+    });
+    state.tokens = (result && result.tokens) || [];
+    if (state.view === 'tokens' || state.view === 'token-transfer') render();
+  } catch (error) {
+    setError(error.message || String(error));
+  }
+}
+
+function renderTokens() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  const list = state.tokens;
+  const fungible = (list || []).filter((t) => !t.is_nft);
+  const rows = fungible.map((token) => el('tr', {}, [
+    el('td', { className: 'font-semibold', text: token.symbol || '—' }),
+    el('td', { text: token.name || '—' }),
+    el('td', { className: 'native-mono', text: token.balance_display != null ? String(token.balance_display) : token.balance }),
+    el('td', {}, [
+      el('button', {
+        className: 'btn btn-xs btn-outline',
+        type: 'button',
+        text: 'Send',
+        onClick: () => {
+          state.view = 'token-transfer';
+          state.tokenTransferDraft = { token };
+          state.tokenTransferResult = null;
+          state.error = '';
+          render();
+        },
+      }),
+    ]),
+  ]));
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Tokens' }),
+      el('p', { className: 'text-base-content/70', text: 'Fungible token balances for this address.' }),
+    ]),
+    el('div', { className: 'flex flex-wrap gap-2' }, [
+      el('button', {
+        className: 'btn btn-primary btn-sm',
+        type: 'button',
+        text: 'Create token',
+        onClick: () => {
+          state.view = 'token-create';
+          state.tokenCreateDraft = null;
+          state.tokenCreateResult = null;
+          state.error = '';
+          render();
+        },
+      }),
+      el('button', {
+        className: 'btn btn-outline btn-sm',
+        type: 'button',
+        disabled: state.busy,
+        text: 'Refresh',
+        onClick: () => { void loadTokens(); },
+      }),
+      el('button', {
+        className: 'btn btn-ghost btn-sm',
+        type: 'button',
+        text: 'Back',
+        onClick: () => { state.view = 'wallet'; render(); },
+      }),
+    ]),
+    !list
+      ? el('p', { className: 'text-base-content/60', text: 'Loading…' })
+      : fungible.length === 0
+        ? el('p', { className: 'text-base-content/60', text: 'No tokens held on this address.' })
+        : el('div', { className: 'overflow-x-auto card-gradient' }, [
+          el('table', { className: 'table table-sm', id: 'tokenBalancesTable' }, [
+            el('thead', {}, [
+              el('tr', {}, [
+                el('th', { text: 'Symbol' }),
+                el('th', { text: 'Name' }),
+                el('th', { text: 'Balance' }),
+                el('th', { text: '' }),
+              ]),
+            ]),
+            el('tbody', {}, rows),
+          ]),
+        ]),
+  ]);
+}
+
+function renderTokenCreate() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+
+  if (state.tokenCreateResult) {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Token created' }),
+      el('p', { className: 'native-mono text-sm break-all', id: 'tokenCreateTxHash', text: state.tokenCreateResult.txnHash }),
+      el('button', {
+        className: 'btn btn-primary',
+        type: 'button',
+        text: 'Back to tokens',
+        onClick: () => {
+          state.tokenCreateResult = null;
+          state.tokenCreateDraft = null;
+          state.view = 'tokens';
+          render();
+          void loadTokens();
+        },
+      }),
+    ]);
+  }
+
+  if (state.tokenCreateDraft && state.tokenCreateDraft.prepared) {
+    const draft = state.tokenCreateDraft;
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Confirm token create' }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-2' }, [
+          el('p', { text: `Symbol: ${draft.symbol}` }),
+          el('p', { text: `Name: ${draft.name}` }),
+          el('p', { text: `Decimals: ${draft.decimals}` }),
+          el('p', { text: `Initial supply (units): ${draft.supplyDisplay}` }),
+          el('p', { text: `Fee: ${draft.feeQuanta} Quanta` }),
+          el('p', { text: `OTS: ${draft.otsIndex}` }),
+          el('div', { className: 'card-actions justify-between mt-2' }, [
+            el('button', {
+              className: 'btn btn-ghost',
+              type: 'button',
+              text: 'Back',
+              onClick: () => { state.tokenCreateDraft = null; render(); },
+            }),
+            el('button', {
+              id: 'confirmTokenCreateBtn',
+              className: 'btn btn-primary',
+              type: 'button',
+              disabled: state.busy,
+              text: state.busy ? 'Signing…' : 'Sign & create',
+              onClick: () => { void confirmTokenCreate(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  const nextOts = readNextOts(wallet.ots);
+  const symbolInput = el('input', { id: 'tokenSymbol', className: 'input input-bordered w-full', maxlength: '10', placeholder: 'SYM' });
+  const nameInput = el('input', { id: 'tokenName', className: 'input input-bordered w-full', maxlength: '32', placeholder: 'Token name' });
+  const decimalsInput = el('input', { id: 'tokenDecimals', className: 'input input-bordered w-full', type: 'number', min: '0', max: '19', value: '0' });
+  const supplyInput = el('input', { id: 'tokenSupply', className: 'input input-bordered w-full', type: 'number', min: '1', step: '1', value: '1000' });
+  const feeInput = el('input', { id: 'tokenCreateFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
+  const otsInput = el('input', { id: 'tokenCreateOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Create token' }),
+      el('p', { className: 'text-base-content/70', text: 'Mint a fungible token with initial balance to this wallet.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Symbol' }), symbolInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Name' }), nameInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Decimals' }), decimalsInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Initial supply' }), supplyInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => { state.view = 'tokens'; render(); },
+          }),
+          el('button', {
+            id: 'prepareTokenCreateBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              const symbol = symbolInput.value.trim();
+              const name = nameInput.value.trim();
+              const decimals = Number(decimalsInput.value);
+              const supply = Number(supplyInput.value);
+              const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
+              if (!symbol || !name) {
+                setError('Symbol and name are required');
+                return;
+              }
+              if (!Number.isInteger(decimals) || decimals < 0 || decimals > 19) {
+                setError('Decimals must be an integer 0–19');
+                return;
+              }
+              if (!Number.isFinite(supply) || supply <= 0) {
+                setError('Supply must be positive');
+                return;
+              }
+              const amountUnits = Math.round(supply * (10 ** decimals));
+              if (!Number.isSafeInteger(amountUnits) || amountUnits <= 0) {
+                setError('Supply × 10^decimals exceeds safe integer range');
+                return;
+              }
+              const totalSigs = totalSignaturesForHeight(wallet.height || 10);
+              const parsed = wallet.ots ? parseOtsBitfield(wallet.ots, totalSigs) : { keys: {} };
+              if (otsIndexUsed(parsed.keys, otsIndex)) {
+                setError(`OTS key ${otsIndex} appears used`);
+                return;
+              }
+              setBusy(true);
+              setError('');
+              try {
+                const prepared = await api('createTokenTxn', {
+                  network: state.network,
+                  symbol: Array.from(new TextEncoder().encode(symbol)),
+                  name: Array.from(new TextEncoder().encode(name)),
+                  owner: wallet.address,
+                  decimals,
+                  initial_balances: [{ address: wallet.address, amount: amountUnits }],
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.tokenCreateDraft = {
+                  prepared,
+                  symbol,
+                  name,
+                  decimals,
+                  supplyDisplay: supply,
+                  feeQuanta,
+                  otsIndex,
+                };
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function confirmTokenCreate() {
+  const wallet = state.wallet;
+  const draft = state.tokenCreateDraft;
+  if (!wallet || !draft || !draft.prepared) return;
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const xmss = ensureXmssFromWallet(wallet);
+    const signed = signTokenCreateTransaction(xmss, draft.prepared, draft.otsIndex);
+    const pushed = await api('pushTransaction', {
+      network: state.network,
+      transaction_signed: signed.signedTx,
+    });
+    state.tokenCreateResult = {
+      txnHash: (pushed && pushed.tx_hash) || signed.txnHash,
+    };
+    state.tokenCreateDraft = null;
+    render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
+function renderTokenTransfer() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+
+  if (state.tokenTransferResult) {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Token sent' }),
+      el('p', { className: 'native-mono text-sm break-all', id: 'tokenTransferTxHash', text: state.tokenTransferResult.txnHash }),
+      el('button', {
+        className: 'btn btn-primary',
+        type: 'button',
+        text: 'Back to tokens',
+        onClick: () => {
+          state.tokenTransferResult = null;
+          state.tokenTransferDraft = null;
+          state.view = 'tokens';
+          render();
+          void loadTokens();
+        },
+      }),
+    ]);
+  }
+
+  const draft = state.tokenTransferDraft || {};
+  const token = draft.token;
+  if (!token) {
+    state.view = 'tokens';
+    return renderTokens();
+  }
+
+  if (draft.prepared) {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Confirm token transfer' }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-2' }, [
+          el('p', { text: `Token: ${token.symbol || token.hash}` }),
+          el('p', { className: 'native-mono text-xs break-all', text: `To: ${draft.toAddress}` }),
+          el('p', { text: `Amount: ${draft.amountDisplay}` }),
+          el('p', { text: `Fee: ${draft.feeQuanta} Quanta` }),
+          el('p', { text: `OTS: ${draft.otsIndex}` }),
+          el('div', { className: 'card-actions justify-between mt-2' }, [
+            el('button', {
+              className: 'btn btn-ghost',
+              type: 'button',
+              text: 'Back',
+              onClick: () => {
+                state.tokenTransferDraft = { token };
+                render();
+              },
+            }),
+            el('button', {
+              id: 'confirmTokenTransferBtn',
+              className: 'btn btn-primary',
+              type: 'button',
+              disabled: state.busy,
+              text: state.busy ? 'Signing…' : 'Sign & send',
+              onClick: () => { void confirmTokenTransfer(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  const nextOts = readNextOts(wallet.ots);
+  const toInput = el('input', {
+    id: 'tokenToAddress',
+    className: 'input input-bordered w-full native-mono',
+    placeholder: 'Q…',
+    value: wallet.address,
+  });
+  const amountInput = el('input', {
+    id: 'tokenAmount',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    step: 'any',
+    value: '1',
+  });
+  const feeInput = el('input', {
+    id: 'tokenTransferFee',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    step: '0.000000001',
+    value: '0.001',
+  });
+  const otsInput = el('input', {
+    id: 'tokenTransferOts',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    value: nextOts != null ? String(nextOts) : '0',
+  });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Transfer token' }),
+      el('p', { className: 'text-base-content/70', text: `${token.symbol || 'Token'} · balance ${token.balance_display != null ? token.balance_display : token.balance}` }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Recipient' }), toInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Amount' }), amountInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', {
+            className: 'btn btn-ghost',
+            type: 'button',
+            text: 'Back',
+            onClick: () => { state.view = 'tokens'; state.tokenTransferDraft = null; render(); },
+          }),
+          el('button', {
+            id: 'prepareTokenTransferBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              const toAddress = toInput.value.trim();
+              const amountDisplay = Number(amountInput.value);
+              const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
+              const decimals = Number(token.decimals || 0);
+              if (!/^Q[0-9a-fA-F]{78}$/.test(toAddress)) {
+                setError('Recipient must be a Q + 78 hex address');
+                return;
+              }
+              if (!Number.isFinite(amountDisplay) || amountDisplay <= 0) {
+                setError('Amount must be positive');
+                return;
+              }
+              const amountUnits = Math.round(amountDisplay * (10 ** decimals));
+              if (!Number.isSafeInteger(amountUnits) || amountUnits <= 0) {
+                setError('Amount exceeds safe integer precision');
+                return;
+              }
+              const totalSigs = totalSignaturesForHeight(wallet.height || 10);
+              const parsed = wallet.ots ? parseOtsBitfield(wallet.ots, totalSigs) : { keys: {} };
+              if (otsIndexUsed(parsed.keys, otsIndex)) {
+                setError(`OTS key ${otsIndex} appears used`);
+                return;
+              }
+              setBusy(true);
+              setError('');
+              try {
+                const prepared = await api('transferTokenTxn', {
+                  network: state.network,
+                  addresses_to: [toAddress],
+                  amounts: [amountUnits],
+                  token_txhash: token.hash,
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.tokenTransferDraft = {
+                  token,
+                  prepared,
+                  toAddress,
+                  amountDisplay,
+                  feeQuanta,
+                  otsIndex,
+                };
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function confirmTokenTransfer() {
+  const wallet = state.wallet;
+  const draft = state.tokenTransferDraft;
+  if (!wallet || !draft || !draft.prepared) return;
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const xmss = ensureXmssFromWallet(wallet);
+    const signed = signTokenTransferTransaction(xmss, draft.prepared, draft.otsIndex);
+    const pushed = await api('pushTransaction', {
+      network: state.network,
+      transaction_signed: signed.signedTx,
+    });
+    state.tokenTransferResult = {
+      txnHash: (pushed && pushed.tx_hash) || signed.txnHash,
+    };
+    state.tokenTransferDraft = null;
+    render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
 function renderVerify() {
   const hashInput = el('input', {
     id: 'verifyTxHash',
@@ -1883,6 +2399,9 @@ function render() {
   else if (state.view === 'tools') view = renderTools();
   else if (state.view === 'recovery') view = renderRecovery();
   else if (state.view === 'message') view = renderMessage();
+  else if (state.view === 'tokens') view = renderTokens();
+  else if (state.view === 'token-create') view = renderTokenCreate();
+  else if (state.view === 'token-transfer') view = renderTokenTransfer();
   else if (state.view === 'verify') view = renderVerify();
   else view = renderHome();
 

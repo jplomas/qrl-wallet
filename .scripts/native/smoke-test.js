@@ -116,6 +116,38 @@ async function main() {
       throw new Error(`qrSvg failed: ${qr.body.slice(0, 200)}`);
     }
 
+    // Token revive helpers (no network): ensure PushTransaction buffer revival for token txs
+    const { reviveSignedTransaction } = require(path.join(PROJECT_ROOT, 'native/backend/api.js'));
+    const revivedToken = reviveSignedTransaction({
+      fee: '1000000',
+      public_key: 'aa',
+      signature: 'bb',
+      token: {
+        symbol: Buffer.from('SYM').toString('hex'),
+        name: Buffer.from('Name').toString('hex'),
+        owner: '000400' + '11'.repeat(36),
+        decimals: '2',
+        initial_balances: [{ address: '000400' + '22'.repeat(36), amount: '100' }],
+      },
+    });
+    if (!Buffer.isBuffer(revivedToken.token.symbol) || revivedToken.token.symbol.toString() !== 'SYM') {
+      throw new Error('token.symbol revive failed');
+    }
+    if (!Buffer.isBuffer(revivedToken.token.initial_balances[0].address)) {
+      throw new Error('token.initial_balances address revive failed');
+    }
+    const revivedTransferToken = reviveSignedTransaction({
+      fee: '1',
+      transfer_token: {
+        token_txhash: 'ab'.repeat(32),
+        addrs_to: ['000400' + '33'.repeat(36)],
+        amounts: ['5'],
+      },
+    });
+    if (!Buffer.isBuffer(revivedTransferToken.transfer_token.token_txhash)) {
+      throw new Error('transfer_token.token_txhash revive failed');
+    }
+
     const forbidden = await new Promise((resolve, reject) => {
       http.get(`${base}/api/health`, { headers: { Host: 'evil.example:80' } }, (res) => {
         resolve(res.statusCode);
