@@ -1,0 +1,18 @@
+<Window x:Class="QRLWallet.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="QRL Wallet"
+        Width="1300"
+        Height="840"
+        MinWidth="1024"
+        MinHeight="700">
+  <Grid>
+    <Grid x:Name="LoadingPanel" Background="#0B181E">
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+        <TextBlock Text="Starting QRL Wallet..." Foreground="#D0D0D0" FontSize="16" HorizontalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+    <wv2:WebView2 x:Name="WalletWebView" Visibility="Collapsed" />
+  </Grid>
+</Window>

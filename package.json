@@ -93,7 +93,17 @@
     "installer:darwin": "node .scripts/sync-mac-icon.js && node build-dmg.js",
     "installer:linux": "node build-deb.js",
     "installer:win32": "node build-msi.js",
-    "desktop": "meteor-desktop"
+    "desktop": "meteor-desktop",
+    "native:backend": "node native/backend/server.js",
+    "native:smoke-test": "node .scripts/native/smoke-test.js",
+    "native:wallet-test": "node .scripts/native/wallet-unlock-test.js",
+    "native:dev": "node .scripts/native/dev.js",
+    "native:dev:macos": "node .scripts/native/dev.js macos",
+    "native:dev:windows": "node .scripts/native/dev.js windows",
+    "native:dev:linux": "node .scripts/native/dev.js linux",
+    "native:build:macos": "bash macos/build.sh",
+    "native:build:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File windows/build.ps1",
+    "native:build:linux": "bash linux/build.sh"
   },
   "meteor": {
     "mainModule": {

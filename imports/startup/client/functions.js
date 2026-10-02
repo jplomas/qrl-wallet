@@ -159,10 +159,17 @@ export async function createTransport() {
   return qrl
 }
 
-// Client side function to detmine if running within Electron
+// Client side function to determine if running within a desktop shell
+// (legacy Electron or the native macOS / Windows / Linux rewrites).
 export function isElectrified() {
+  if (typeof window !== 'undefined' && window.__QRL_NATIVE_DESKTOP__ === true) {
+    return true
+  }
   const userAgent = navigator.userAgent.toLowerCase()
   if (userAgent.indexOf(' electron/') > -1) {
+    return true
+  }
+  if (userAgent.indexOf(' qrlwallet-native/') > -1) {
     return true
   }
   return false
