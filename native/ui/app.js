@@ -2177,7 +2177,7 @@ async function loadTokens() {
       address: state.wallet.address,
     });
     state.tokens = (result && result.tokens) || [];
-    if (state.view === 'tokens' || state.view === 'token-transfer') render();
+    if (state.view === 'tokens' || state.view === 'token-transfer' || state.view === 'nft') render();
   } catch (error) {
     setError(error.message || String(error));
   }
@@ -3372,6 +3372,243 @@ async function confirmIdentity() {
   }
 }
 
+
+
+function renderNfts() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  if (state.nftMintResult) {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'NFT minted' }),
+      el('p', { className: 'native-mono text-sm break-all', id: 'nftMintTxHash', text: state.nftMintResult.txnHash }),
+      el('button', {
+        className: 'btn btn-primary',
+        type: 'button',
+        text: 'Back to NFTs',
+        onClick: () => {
+          state.nftMintResult = null;
+          state.nftMintDraft = null;
+          state.view = 'nft';
+          render();
+          void loadTokens();
+        },
+      }),
+    ]);
+  }
+  if (state.nftMintDraft && state.nftMintDraft.prepared) {
+    const draft = state.nftMintDraft;
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Confirm NFT mint' }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-2' }, [
+          el('p', { text: `Provider: ${draft.providerId}` }),
+          el('p', { className: 'native-mono text-xs break-all', text: `Content hash: ${draft.contentHash}` }),
+          el('p', { text: `Fee: ${draft.feeQuanta} · OTS: ${draft.otsIndex}` }),
+          el('div', { className: 'card-actions justify-between' }, [
+            el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.nftMintDraft = null; render(); } }),
+            el('button', {
+              id: 'confirmNftMintBtn',
+              className: 'btn btn-primary',
+              type: 'button',
+              disabled: state.busy || wallet.type === 'ledger',
+              text: wallet.type === 'ledger' ? 'Ledger NFT mint not yet supported' : (state.busy ? 'Signing…' : 'Sign & mint'),
+              onClick: () => { void confirmNftMint(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  const list = state.tokens;
+  const nfts = (list || []).filter((t) => isNftToken(t));
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'NFTs' }),
+      el('p', { className: 'text-base-content/70', text: 'Non-fungible tokens held by this address (00FF00FF prefix).' }),
+    ]),
+    el('div', { className: 'flex flex-wrap gap-2' }, [
+      el('button', {
+        className: 'btn btn-primary btn-sm',
+        type: 'button',
+        text: 'Mint NFT',
+        onClick: () => { state.view = 'nft-mint'; state.nftMintDraft = null; state.nftMintResult = null; render(); },
+      }),
+      el('button', {
+        className: 'btn btn-outline btn-sm',
+        type: 'button',
+        text: 'Refresh',
+        onClick: () => { void loadTokens(); },
+      }),
+      el('button', {
+        className: 'btn btn-ghost btn-sm',
+        type: 'button',
+        text: 'Back',
+        onClick: () => { state.view = 'tools'; render(); },
+      }),
+    ]),
+    !list
+      ? el('p', { className: 'text-base-content/60', text: 'Loading…' })
+      : nfts.length === 0
+        ? el('p', { className: 'text-base-content/60', id: 'nftEmpty', text: 'No NFTs held on this address.' })
+        : el('div', { className: 'overflow-x-auto card-gradient' }, [
+          el('table', { className: 'table table-sm', id: 'nftBalancesTable' }, [
+            el('thead', {}, [
+              el('tr', {}, [
+                el('th', { text: 'Hash' }),
+                el('th', { text: 'Balance' }),
+                el('th', { text: '' }),
+              ]),
+            ]),
+            el('tbody', {}, nfts.map((token) => el('tr', {}, [
+              el('td', { className: 'native-mono text-xs break-all', text: token.hash || '—' }),
+              el('td', { text: token.balance_display != null ? String(token.balance_display) : token.balance }),
+              el('td', {}, [
+                el('button', {
+                  className: 'btn btn-xs btn-outline',
+                  type: 'button',
+                  text: 'Send',
+                  onClick: () => {
+                    state.view = 'token-transfer';
+                    state.tokenTransferDraft = { token };
+                    state.tokenTransferResult = null;
+                    state.error = '';
+                    render();
+                  },
+                }),
+              ]),
+            ]))),
+          ]),
+        ]),
+  ]);
+}
+
+function renderNftMint() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  const nextOts = readNextOts(wallet.ots);
+  const providerInput = el('input', {
+    id: 'nftProviderId',
+    className: 'input input-bordered w-full native-mono',
+    placeholder: 'Provider id (8 hex chars)',
+    maxlength: '10',
+  });
+  const jsonInput = el('textarea', {
+    id: 'nftJson',
+    className: 'textarea textarea-bordered w-full native-mono min-h-32',
+    placeholder: '{"name":"My NFT","description":"..."}',
+  });
+  const feeInput = el('input', {
+    id: 'nftMintFee',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    step: '0.000000001',
+    value: '0.01',
+  });
+  const otsInput = el('input', {
+    id: 'nftMintOts',
+    className: 'input input-bordered w-full',
+    type: 'number',
+    min: '0',
+    value: nextOts != null ? String(nextOts) : '0',
+  });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Mint NFT' }),
+      el('p', { className: 'text-base-content/70', text: 'Creates a 00FF00FF token with supply 1 owned by this wallet.' }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Provider id' }), providerInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Metadata JSON' }), jsonInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.view = 'nft'; render(); } }),
+          el('button', {
+            id: 'prepareNftMintBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              try {
+                if (wallet.type === 'ledger') {
+                  setError('Ledger NFT mint is not supported yet');
+                  return;
+                }
+                const built = await buildNftFromJson(providerInput.value.trim(), jsonInput.value);
+                const feeQuanta = Number(feeInput.value);
+                const otsIndex = Number(otsInput.value);
+                setBusy(true);
+                setError('');
+                const prepared = await api('createTokenTxn', {
+                  network: state.network,
+                  symbol: Array.from(built.symbolBytes),
+                  name: Array.from(built.nameBytes),
+                  owner: wallet.address,
+                  decimals: 0,
+                  initial_balances: [{ address: wallet.address, amount: 1 }],
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.nftMintDraft = {
+                  prepared,
+                  otsIndex,
+                  feeQuanta,
+                  providerId: built.providerId,
+                  contentHash: built.contentHash,
+                };
+                state.view = 'nft';
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function confirmNftMint() {
+  const wallet = state.wallet;
+  const draft = state.nftMintDraft;
+  if (!wallet || !draft || !draft.prepared) return;
+  if (wallet.type === 'ledger') {
+    setError('Ledger NFT mint is not supported yet');
+    return;
+  }
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const xmss = ensureXmssFromWallet(wallet);
+    const signed = signTokenCreateTransaction(xmss, draft.prepared, draft.otsIndex);
+    const pushed = await api('pushTransaction', {
+      network: state.network,
+      transaction_signed: signed.signedTx,
+    });
+    state.nftMintResult = { txnHash: (pushed && pushed.tx_hash) || signed.txnHash };
+    state.nftMintDraft = null;
+    render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
 
 function renderVerify() {
   const hashInput = el('input', {

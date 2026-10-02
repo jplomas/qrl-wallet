@@ -67,6 +67,9 @@ jobs:
       - name: Identity encoding unit test
         run: npm run native:identity-test
 
+      - name: NFT encoding unit test
+        run: npm run native:nft-test
+
       - name: Build Linux shell package
         run: npm run native:build:linux
 

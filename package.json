@@ -102,6 +102,7 @@
     "native:notarise-test": "node .scripts/native/notarise-test.js",
     "native:ledger-test": "node .scripts/native/ledger-test.js",
     "native:identity-test": "node .scripts/native/identity-test.js",
+    "native:nft-test": "node .scripts/native/nft-test.js",
     "native:dev": "node .scripts/native/dev.js",
     "native:dev:macos": "node .scripts/native/dev.js macos",
     "native:dev:windows": "node .scripts/native/dev.js windows",

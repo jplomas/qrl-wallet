@@ -26,9 +26,10 @@ Base PR target: **`native`** branch.
 - [x] Ledger open + sign transfer
 - [x] Multisig create/spend/vote
 - [x] Keybase + Github identity tools
+- [x] NFT balances + mint
 
 ## Next
-- [ ] NFT balances + mint
+- (feature checklist complete)
 
 ## Explicitly deferred / policy
 - Custom gRPC nodes (native allowlist keeps these off by default)
