@@ -148,6 +148,40 @@ async function main() {
       throw new Error('transfer_token.token_txhash revive failed');
     }
 
+    const revivedMs = reviveSignedTransaction({
+      fee: '1',
+      multi_sig_create: {
+        threshold: '2',
+        signatories: ['000400' + '11'.repeat(36), '000400' + '22'.repeat(36)],
+        weights: ['1', '1'],
+      },
+    });
+    if (!Buffer.isBuffer(revivedMs.multi_sig_create.signatories[0])) {
+      throw new Error('multi_sig_create.signatories revive failed');
+    }
+    const revivedMsSpend = reviveSignedTransaction({
+      fee: '1',
+      multi_sig_spend: {
+        multi_sig_address: '000400' + '44'.repeat(36),
+        expiry_block_number: '100',
+        addrs_to: ['000400' + '55'.repeat(36)],
+        amounts: ['9'],
+      },
+    });
+    if (!Buffer.isBuffer(revivedMsSpend.multi_sig_spend.multi_sig_address)) {
+      throw new Error('multi_sig_spend.multi_sig_address revive failed');
+    }
+    const revivedMsVote = reviveSignedTransaction({
+      fee: '1',
+      multi_sig_vote: {
+        shared_key: 'cd'.repeat(32),
+        unvote: false,
+      },
+    });
+    if (!Buffer.isBuffer(revivedMsVote.multi_sig_vote.shared_key)) {
+      throw new Error('multi_sig_vote.shared_key revive failed');
+    }
+
     const forbidden = await new Promise((resolve, reject) => {
       http.get(`${base}/api/health`, { headers: { Host: 'evil.example:80' } }, (res) => {
         resolve(res.statusCode);

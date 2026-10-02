@@ -20,6 +20,11 @@ import {
   signTokenTransferTransaction,
 } from './lib/sign-token.js';
 import {
+  signMultiSigCreateTransaction,
+  signMultiSigSpendTransaction,
+  signMultiSigVoteTransaction,
+} from './lib/sign-multisig.js';
+import {
   buildNotarisationHex,
   notarisationHexToMessageBytes,
   sha256HexOfArrayBuffer,
@@ -48,6 +53,10 @@ const state = {
   tokenTransferResult: null,
   notariseDraft: null,
   notariseResult: null,
+  multisigAddresses: null,
+  multisigSpends: null,
+  multisigDraft: null,
+  multisigResult: null,
 };
 
 const SHOR_PER_QUANTA = 1e9;
@@ -1706,6 +1715,7 @@ function renderTools() {
     { id: 'verify', title: 'Verify TX', desc: 'Look up a transaction hash', view: 'verify', seedOnly: false },
     { id: 'ots', title: 'OTS tracker', desc: 'Inspect used one-time keys', view: 'ots', seedOnly: false },
     { id: 'tokens', title: 'Tokens', desc: 'Balances, create, and transfer', view: 'tokens', seedOnly: false },
+    { id: 'multisig', title: 'Multisig', desc: 'Create, spend, and vote', view: 'multisig', seedOnly: false },
   ].filter((tool) => !(tool.seedOnly && state.wallet && state.wallet.type === 'ledger'));
   return el('section', { className: 'space-y-6' }, [
     el('div', { className: 'space-y-2' }, [
@@ -1722,10 +1732,15 @@ function renderTools() {
           state.notariseDraft = null;
           state.notariseResult = null;
         }
+        if (tool.view === 'multisig') {
+          state.multisigDraft = null;
+          state.multisigResult = null;
+        }
         render();
         if (tool.view === 'ots') void loadOtsTracker();
         if (tool.view === 'recovery') void loadRecoveryQr();
         if (tool.view === 'tokens') void loadTokens();
+        if (tool.view === 'multisig') void loadMultisig();
       },
     }, [
       el('h3', { className: 'font-bold', text: tool.title }),
@@ -2630,6 +2645,441 @@ async function confirmTokenTransfer() {
   }
 }
 
+
+async function loadMultisig() {
+  if (!state.wallet) return;
+  try {
+    const [addresses, spends] = await Promise.all([
+      api('getMultiSigAddressesByAddress', {
+        network: state.network,
+        address: state.wallet.address,
+        item_per_page: 20,
+        page_number: 1,
+      }).catch(() => ({ multi_sig_detail: [] })),
+      api('getMultiSigSpendTxsByAddress', {
+        network: state.network,
+        address: state.wallet.address,
+        item_per_page: 20,
+        page_number: 1,
+      }).catch(() => ({ transactions_detail: [] })),
+    ]);
+    state.multisigAddresses = addresses.multi_sig_detail || addresses.multisig_detail || [];
+    state.multisigSpends = spends.transactions_detail || spends.transaction_detail || [];
+    if (state.view === 'multisig' || state.view === 'multisig-vote') render();
+  } catch (error) {
+    setError(error.message || String(error));
+  }
+}
+
+function formatMaybeQAddress(value) {
+  if (!value) return '—';
+  const hex = String(value);
+  if (hex.startsWith('Q')) return hex;
+  if (/^[0-9a-fA-F]{78}$/.test(hex)) return `Q${hex}`;
+  return hex;
+}
+
+function renderMultisig() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  if (state.multisigResult) {
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Multisig submitted' }),
+      el('p', { className: 'native-mono text-sm break-all', id: 'multisigTxHash', text: state.multisigResult.txnHash }),
+      el('button', {
+        className: 'btn btn-primary',
+        type: 'button',
+        text: 'Back',
+        onClick: () => {
+          state.multisigResult = null;
+          state.multisigDraft = null;
+          state.view = 'multisig';
+          render();
+          void loadMultisig();
+        },
+      }),
+    ]);
+  }
+  if (state.multisigDraft && state.multisigDraft.prepared) {
+    const draft = state.multisigDraft;
+    return el('section', { className: 'space-y-6' }, [
+      el('h1', { className: 'text-3xl font-bold', text: `Confirm multisig ${draft.kind}` }),
+      el('div', { className: 'card-gradient' }, [
+        el('div', { className: 'card-body gap-2' }, [
+          el('pre', {
+            className: 'native-mono text-xs whitespace-pre-wrap break-all',
+            text: JSON.stringify(draft.summary, null, 2),
+          }),
+          el('div', { className: 'card-actions justify-between' }, [
+            el('button', {
+              className: 'btn btn-ghost',
+              type: 'button',
+              text: 'Back',
+              onClick: () => { state.multisigDraft = null; render(); },
+            }),
+            el('button', {
+              id: 'confirmMultisigBtn',
+              className: 'btn btn-primary',
+              type: 'button',
+              disabled: state.busy || wallet.type === 'ledger',
+              text: wallet.type === 'ledger'
+                ? 'Ledger multisig signing not yet supported'
+                : (state.busy ? 'Signing…' : 'Sign & send'),
+              onClick: () => { void confirmMultisig(); },
+            }),
+          ]),
+        ]),
+      ]),
+    ]);
+  }
+
+  const addresses = state.multisigAddresses;
+  const spends = state.multisigSpends;
+  return el('section', { className: 'space-y-6' }, [
+    el('div', { className: 'space-y-2' }, [
+      el('h1', { className: 'text-3xl font-bold', text: 'Multisig' }),
+      el('p', { className: 'text-base-content/70', text: 'Create a shared address, propose spends, and vote.' }),
+    ]),
+    el('div', { className: 'flex flex-wrap gap-2' }, [
+      el('button', {
+        className: 'btn btn-primary btn-sm',
+        type: 'button',
+        text: 'Create',
+        onClick: () => { state.view = 'multisig-create'; state.multisigDraft = null; render(); },
+      }),
+      el('button', {
+        className: 'btn btn-outline btn-sm',
+        type: 'button',
+        text: 'Spend',
+        onClick: () => { state.view = 'multisig-spend'; state.multisigDraft = null; render(); },
+      }),
+      el('button', {
+        className: 'btn btn-outline btn-sm',
+        type: 'button',
+        text: 'Vote',
+        onClick: () => { state.view = 'multisig-vote'; state.multisigDraft = null; render(); void loadMultisig(); },
+      }),
+      el('button', {
+        className: 'btn btn-ghost btn-sm',
+        type: 'button',
+        text: 'Refresh',
+        onClick: () => { void loadMultisig(); },
+      }),
+      el('button', {
+        className: 'btn btn-ghost btn-sm',
+        type: 'button',
+        text: 'Back',
+        onClick: () => { state.view = 'tools'; render(); },
+      }),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-3' }, [
+        el('h2', { className: 'card-title text-base', text: 'Addresses for this wallet' }),
+        !addresses
+          ? el('p', { className: 'text-base-content/60', text: 'Loading…' })
+          : addresses.length === 0
+            ? el('p', { className: 'text-base-content/60', text: 'No multisig addresses found.' })
+            : el('ul', { className: 'space-y-2', id: 'multisigAddressList' }, addresses.map((item) => {
+              const addr = formatMaybeQAddress(
+                item.address || item.multi_sig_address || item.multisig_address,
+              );
+              return el('li', { className: 'native-mono text-xs break-all', text: addr });
+            })),
+      ]),
+    ]),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-3' }, [
+        el('h2', { className: 'card-title text-base', text: 'Recent spend proposals' }),
+        !spends
+          ? el('p', { className: 'text-base-content/60', text: 'Loading…' })
+          : spends.length === 0
+            ? el('p', { className: 'text-base-content/60', text: 'No spend transactions found.' })
+            : el('ul', { className: 'space-y-2' }, spends.slice(0, 8).map((item) => {
+              const hash = item.transaction_hash || item.txhash || item.hash || JSON.stringify(item).slice(0, 64);
+              return el('li', { className: 'native-mono text-xs break-all', text: String(hash) });
+            })),
+      ]),
+    ]),
+  ]);
+}
+
+function renderMultisigCreate() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  const nextOts = readNextOts(wallet.ots);
+  const sig2 = el('input', {
+    id: 'msSig2',
+    className: 'input input-bordered w-full native-mono',
+    placeholder: 'Second signatory Q…',
+  });
+  const weight1 = el('input', { id: 'msWeight1', className: 'input input-bordered w-full', type: 'number', min: '1', value: '1' });
+  const weight2 = el('input', { id: 'msWeight2', className: 'input input-bordered w-full', type: 'number', min: '1', value: '1' });
+  const threshold = el('input', { id: 'msThreshold', className: 'input input-bordered w-full', type: 'number', min: '1', value: '2' });
+  const feeInput = el('input', { id: 'msCreateFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
+  const otsInput = el('input', { id: 'msCreateOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('h1', { className: 'text-3xl font-bold', text: 'Create multisig' }),
+    el('p', { className: 'text-base-content/70', text: 'Creates a 2-of-N style address including this wallet as signatory 1.' }),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('p', { className: 'native-mono text-xs break-all', text: `Signatory 1: ${wallet.address}` }),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Signatory 1 weight' }), weight1]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Signatory 2 address' }), sig2]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Signatory 2 weight' }), weight2]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Threshold' }), threshold]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.view = 'multisig'; render(); } }),
+          el('button', {
+            id: 'prepareMultisigCreateBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              const other = sig2.value.trim();
+              if (!/^Q[0-9a-fA-F]{78}$/.test(other)) {
+                setError('Signatory 2 must be a valid Q address');
+                return;
+              }
+              const w1 = Number(weight1.value);
+              const w2 = Number(weight2.value);
+              const thr = Number(threshold.value);
+              const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
+              if (wallet.type === 'ledger') {
+                setError('Ledger multisig create is not supported yet');
+                return;
+              }
+              setBusy(true);
+              setError('');
+              try {
+                const prepared = await api('createMultiSigTxn', {
+                  network: state.network,
+                  signatories: [wallet.address, other],
+                  weights: [w1, w2],
+                  threshold: thr,
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.multisigDraft = {
+                  kind: 'create',
+                  prepared,
+                  otsIndex,
+                  summary: { signatories: [wallet.address, other], weights: [w1, w2], threshold: thr, feeQuanta, otsIndex },
+                };
+                state.view = 'multisig';
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function renderMultisigSpend() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  const nextOts = readNextOts(wallet.ots);
+  const msAddr = el('input', { id: 'msSpendAddress', className: 'input input-bordered w-full native-mono', placeholder: 'Multisig Q…' });
+  const toAddr = el('input', { id: 'msSpendTo', className: 'input input-bordered w-full native-mono', placeholder: 'Recipient Q…', value: wallet.address });
+  const amount = el('input', { id: 'msSpendAmount', className: 'input input-bordered w-full', type: 'number', min: '0', step: 'any', value: '1' });
+  const expiry = el('input', { id: 'msSpendExpiry', className: 'input input-bordered w-full', type: 'number', min: '1', value: String((Number(state.nodeInfo && state.nodeInfo.height) || 0) + 100) });
+  const feeInput = el('input', { id: 'msSpendFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.01' });
+  const otsInput = el('input', { id: 'msSpendOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('h1', { className: 'text-3xl font-bold', text: 'Multisig spend' }),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Multisig address' }), msAddr]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Recipient' }), toAddr]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Amount (Quanta)' }), amount]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Expiry block' }), expiry]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.view = 'multisig'; render(); } }),
+          el('button', {
+            id: 'prepareMultisigSpendBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              const multi = msAddr.value.trim();
+              const to = toAddr.value.trim();
+              if (!/^Q[0-9a-fA-F]{78}$/.test(multi) || !/^Q[0-9a-fA-F]{78}$/.test(to)) {
+                setError('Addresses must be Q + 78 hex');
+                return;
+              }
+              if (wallet.type === 'ledger') {
+                setError('Ledger multisig spend is not supported yet');
+                return;
+              }
+              const amountQuanta = Number(amount.value);
+              const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
+              const expiryBlock = Number(expiry.value);
+              setBusy(true);
+              setError('');
+              try {
+                const prepared = await api('spendMultiSigTxn', {
+                  network: state.network,
+                  multi_sig_address: multi,
+                  addrs_to: [to],
+                  amounts: [Math.round(amountQuanta * SHOR_PER_QUANTA)],
+                  expiry_block_number: expiryBlock,
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.multisigDraft = {
+                  kind: 'spend',
+                  prepared,
+                  otsIndex,
+                  summary: { multi, to, amountQuanta, expiryBlock, feeQuanta, otsIndex },
+                };
+                state.view = 'multisig';
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+function renderMultisigVote() {
+  const wallet = state.wallet;
+  if (!wallet) {
+    state.view = 'home';
+    return renderHome();
+  }
+  const nextOts = readNextOts(wallet.ots);
+  const sharedKey = el('input', {
+    id: 'msVoteSharedKey',
+    className: 'input input-bordered w-full native-mono',
+    placeholder: 'Spend transaction hash (shared key)',
+  });
+  const unvote = el('input', { id: 'msVoteUnvote', className: 'checkbox', type: 'checkbox' });
+  const feeInput = el('input', { id: 'msVoteFee', className: 'input input-bordered w-full', type: 'number', min: '0', step: '0.000000001', value: '0.001' });
+  const otsInput = el('input', { id: 'msVoteOts', className: 'input input-bordered w-full', type: 'number', min: '0', value: nextOts != null ? String(nextOts) : '0' });
+
+  return el('section', { className: 'space-y-6' }, [
+    el('h1', { className: 'text-3xl font-bold', text: 'Multisig vote' }),
+    el('div', { className: 'card-gradient' }, [
+      el('div', { className: 'card-body gap-4' }, [
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Shared key (spend tx hash)' }), sharedKey]),
+        el('label', { className: 'label cursor-pointer justify-start gap-3' }, [
+          unvote,
+          el('span', { className: 'label-text', text: 'Unvote' }),
+        ]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'Fee (Quanta)' }), feeInput]),
+        el('fieldset', { className: 'fieldset' }, [el('legend', { className: 'fieldset-legend', text: 'OTS key' }), otsInput]),
+        el('div', { className: 'card-actions justify-between' }, [
+          el('button', { className: 'btn btn-ghost', type: 'button', text: 'Back', onClick: () => { state.view = 'multisig'; render(); } }),
+          el('button', {
+            id: 'prepareMultisigVoteBtn',
+            className: 'btn btn-primary',
+            type: 'button',
+            disabled: state.busy,
+            text: state.busy ? 'Preparing…' : 'Prepare',
+            onClick: async () => {
+              const key = sharedKey.value.trim();
+              if (!/^[0-9a-fA-F]{64}$/.test(key)) {
+                setError('Shared key must be a 64-character transaction hash');
+                return;
+              }
+              if (wallet.type === 'ledger') {
+                setError('Ledger multisig vote is not supported yet');
+                return;
+              }
+              const feeQuanta = Number(feeInput.value);
+              const otsIndex = Number(otsInput.value);
+              setBusy(true);
+              setError('');
+              try {
+                const prepared = await api('voteMultiSigTxn', {
+                  network: state.network,
+                  shared_key: key,
+                  unvote: Boolean(unvote.checked),
+                  fee: Math.round(feeQuanta * SHOR_PER_QUANTA),
+                  xmss_pk: wallet.pk,
+                });
+                state.multisigDraft = {
+                  kind: 'vote',
+                  prepared,
+                  otsIndex,
+                  summary: { shared_key: key, unvote: Boolean(unvote.checked), feeQuanta, otsIndex },
+                };
+                state.view = 'multisig';
+                render();
+              } catch (error) {
+                setError(error.message || String(error));
+              } finally {
+                setBusy(false);
+              }
+            },
+          }),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
+async function confirmMultisig() {
+  const wallet = state.wallet;
+  const draft = state.multisigDraft;
+  if (!wallet || !draft || !draft.prepared) return;
+  if (wallet.type === 'ledger') {
+    setError('Ledger multisig signing is not supported yet');
+    return;
+  }
+  setBusy(true);
+  setError('');
+  try {
+    await waitForQrllib();
+    const xmss = ensureXmssFromWallet(wallet);
+    let signed;
+    if (draft.kind === 'create') signed = signMultiSigCreateTransaction(xmss, draft.prepared, draft.otsIndex);
+    else if (draft.kind === 'spend') signed = signMultiSigSpendTransaction(xmss, draft.prepared, draft.otsIndex);
+    else signed = signMultiSigVoteTransaction(xmss, draft.prepared, draft.otsIndex);
+    const pushed = await api('pushTransaction', {
+      network: state.network,
+      transaction_signed: signed.signedTx,
+    });
+    state.multisigResult = { txnHash: (pushed && pushed.tx_hash) || signed.txnHash, kind: draft.kind };
+    state.multisigDraft = null;
+    render();
+  } catch (error) {
+    setError(error.message || String(error));
+  } finally {
+    setBusy(false);
+  }
+}
+
 function renderVerify() {
   const hashInput = el('input', {
     id: 'verifyTxHash',
@@ -2741,6 +3191,10 @@ function render() {
   else if (state.view === 'recovery') view = renderRecovery();
   else if (state.view === 'message') view = renderMessage();
   else if (state.view === 'notarise') view = renderNotarise();
+  else if (state.view === 'multisig') view = renderMultisig();
+  else if (state.view === 'multisig-create') view = renderMultisigCreate();
+  else if (state.view === 'multisig-spend') view = renderMultisigSpend();
+  else if (state.view === 'multisig-vote') view = renderMultisigVote();
   else if (state.view === 'tokens') view = renderTokens();
   else if (state.view === 'token-create') view = renderTokenCreate();
   else if (state.view === 'token-transfer') view = renderTokenTransfer();

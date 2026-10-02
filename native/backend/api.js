@@ -100,6 +100,38 @@ function reviveSignedTransaction(tx = {}) {
       amounts: (revived.transfer_token.amounts || []).map((amount) => String(amount)),
     };
   }
+  if (revived.multi_sig_create) {
+    revived.multi_sig_create = {
+      ...revived.multi_sig_create,
+      threshold: revived.multi_sig_create.threshold != null
+        ? String(revived.multi_sig_create.threshold)
+        : undefined,
+      signatories: (revived.multi_sig_create.signatories || []).map(toBuffer),
+      weights: (revived.multi_sig_create.weights || []).map((weight) => String(weight)),
+    };
+  }
+  if (revived.multi_sig_spend) {
+    revived.multi_sig_spend = {
+      ...revived.multi_sig_spend,
+      multi_sig_address: revived.multi_sig_spend.multi_sig_address
+        ? toBuffer(revived.multi_sig_spend.multi_sig_address)
+        : undefined,
+      expiry_block_number: revived.multi_sig_spend.expiry_block_number != null
+        ? String(revived.multi_sig_spend.expiry_block_number)
+        : undefined,
+      addrs_to: (revived.multi_sig_spend.addrs_to || []).map(toBuffer),
+      amounts: (revived.multi_sig_spend.amounts || []).map((amount) => String(amount)),
+    };
+  }
+  if (revived.multi_sig_vote) {
+    revived.multi_sig_vote = {
+      ...revived.multi_sig_vote,
+      shared_key: revived.multi_sig_vote.shared_key
+        ? toBuffer(revived.multi_sig_vote.shared_key)
+        : undefined,
+      unvote: Boolean(revived.multi_sig_vote.unvote),
+    };
+  }
   return revived;
 }
 
@@ -300,6 +332,64 @@ async function transferTokenTxn(request = {}) {
   return serializeValue(response);
 }
 
+async function getMultiSigAddressesByAddress(request = {}) {
+  const response = await callApiWithFailover(targetFor(request), 'GetMultiSigAddressesByAddress', {
+    address: addressToBytes(request.address),
+    item_per_page: request.item_per_page || request.items_per_page || 10,
+    page_number: request.page_number || 1,
+  });
+  return serializeValue(response);
+}
+
+async function getMultiSigSpendTxsByAddress(request = {}) {
+  const response = await callApiWithFailover(targetFor(request), 'GetMultiSigSpendTxsByAddress', {
+    address: addressToBytes(request.address),
+    item_per_page: request.item_per_page || request.items_per_page || 10,
+    page_number: request.page_number || 1,
+    filter_type: request.filter_type || 0,
+  });
+  return serializeValue(response);
+}
+
+async function createMultiSigTxn(request = {}) {
+  const payload = {
+    signatories: (request.signatories || []).map(addressToBytes),
+    weights: (request.weights || []).map((weight) => String(weight)),
+    threshold: String(request.threshold || 0),
+    fee: String(request.fee || 0),
+    xmss_pk: toBuffer(request.xmss_pk || request.pk || request.xmssPk),
+  };
+  if (request.fromAddress || request.master_addr) {
+    payload.master_addr = addressToBytes(request.fromAddress || request.master_addr);
+  }
+  const response = await callApiWithFailover(targetFor(request), 'GetMultiSigCreateTxn', payload);
+  return serializeValue(response);
+}
+
+async function spendMultiSigTxn(request = {}) {
+  const payload = {
+    multi_sig_address: addressToBytes(request.multi_sig_address),
+    addrs_to: (request.addrs_to || request.addresses_to || []).map(addressToBytes),
+    amounts: (request.amounts || []).map((amount) => String(amount)),
+    expiry_block_number: String(request.expiry_block_number || 0),
+    fee: String(request.fee || 0),
+    xmss_pk: toBuffer(request.xmss_pk || request.pk || request.xmssPk),
+  };
+  const response = await callApiWithFailover(targetFor(request), 'GetMultiSigSpendTxn', payload);
+  return serializeValue(response);
+}
+
+async function voteMultiSigTxn(request = {}) {
+  const payload = {
+    shared_key: toBuffer(request.shared_key),
+    unvote: Boolean(request.unvote),
+    fee: String(request.fee || 0),
+    xmss_pk: toBuffer(request.xmss_pk || request.pk || request.xmssPk),
+  };
+  const response = await callApiWithFailover(targetFor(request), 'GetMultiSigVoteTxn', payload);
+  return serializeValue(response);
+}
+
 async function pushTransaction(request = {}) {
   const signed = request.transaction_signed
     || (request.extended_transaction_unsigned && request.extended_transaction_unsigned.tx)
@@ -367,6 +457,11 @@ const handlers = {
   getTokensByAddress,
   createTokenTxn,
   transferTokenTxn,
+  getMultiSigAddressesByAddress,
+  getMultiSigSpendTxsByAddress,
+  createMultiSigTxn,
+  spendMultiSigTxn,
+  voteMultiSigTxn,
   transferCoins,
   pushTransaction,
   createMessageTxn,
