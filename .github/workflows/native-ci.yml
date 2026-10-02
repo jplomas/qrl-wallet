@@ -68,6 +68,7 @@ jobs:
           name: QRLWallet-linux-x64
           path: .native/.dist/QRLWallet-linux-x64-v*.tar.gz
           if-no-files-found: error
+          include-hidden-files: true
 
   native-wallet:
     name: native-wallet-unlock
