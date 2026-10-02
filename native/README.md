@@ -30,21 +30,26 @@ QRL_TEST_MNEMONIC='…' npm run native:wallet-test
 
 ## Redistributable packages
 
-End users should not need npm. Packaging bundles Node + the backend/UI/assets into
-a platform folder (and a Linux `.tar.gz`):
+End users should not need npm. Packaging bundles an official Node binary plus the
+backend/UI/assets into a platform folder (and a Linux `.tar.gz`).
+
+**Build the runtime on the target OS** (native modules like `usb` are platform-specific):
 
 ```bash
-npm run native:package:runtime          # current OS
-npm run native:package:linux            # → .native/.dist/QRLWallet-linux-*/ + .tar.gz
-npm run native:package:macos            # → .native/.dist/QRLWallet-darwin-*/QRLWallet.app
-npm run native:package:windows          # → .native/.dist/QRLWallet-win32-*/
+# on each target machine / CI runner:
+npm run native:package:runtime
+npm run native:package:linux      # → .native/.dist/QRLWallet-linux-*/ + .tar.gz
+npm run native:package:macos      # → .native/.dist/QRLWallet-darwin-*/QRLWallet.app
+npm run native:package:windows    # → .native/.dist/QRLWallet-win32-*/
 ```
 
-| Platform | User install experience | Notes |
-|----------|-------------------------|-------|
-| Linux | Extract tarball, run `./QRLWallet` | Needs system GTK3 + WebKitGTK once |
-| macOS | Open `QRLWallet.app` | Build Swift UI on a Mac first (`native:build:macos`) |
-| Windows | Run `QRLWallet.exe` | Build WPF UI on Windows first; needs WebView2 Runtime |
+| Platform | User experience | Notes |
+|----------|-----------------|-------|
+| Linux | Extract tarball, run `./QRLWallet` | One-time: `python3-gi` + WebKitGTK |
+| macOS | Open `QRLWallet.app` | Run `native:build:macos` on a Mac before packaging |
+| Windows | Run `QRLWallet.exe` | Run `native:build:windows` on Windows; needs WebView2 |
+
+Example Linux artifact from this tree: `QRLWallet-linux-x64-v*.tar.gz` (~50MB compressed).
 
 ## CI secret
 
